@@ -1,4 +1,4 @@
-# BlockyAI
+# BlockyAI v1.0
 
 BlockyAI is a Python project for constructing your own AI model with different layers of blocks. Also, It can be used for learning the theory of AI construction
 
