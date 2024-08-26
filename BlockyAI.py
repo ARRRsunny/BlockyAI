@@ -67,9 +67,11 @@ class BlockApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Block Code Editor")
+        self.dataset_var = tk.StringVar(value="fashion_mnist")
         self.optimizer_var = tk.StringVar(value="Adam")
         self.batch_size_var = tk.IntVar(value=32)
         self.epochs_var = tk.IntVar(value=10)
+        self.learning_rate_var = tk.DoubleVar(value=0.001)
 
         self.blocks = []
 
@@ -111,9 +113,11 @@ class BlockApp:
         settings_frame = tk.Frame(self.root)
         settings_frame.pack(side=tk.BOTTOM, fill=tk.X)
         tk.Label(settings_frame, text="Settings", font=("Arial", 14, "bold")).pack()
+        self.create_setting_option(settings_frame, "Dataset:", self.dataset_var, ["fashion_mnist", "mnist", "cifar10"])
         self.create_setting_option(settings_frame, "Optimizer:", self.optimizer_var, ["Adam", "SGD"])
         self.create_setting_entry(settings_frame, "Batch Size:", self.batch_size_var)
         self.create_setting_entry(settings_frame, "Epochs:", self.epochs_var)
+        self.create_setting_entry(settings_frame, "Learning Rate:", self.learning_rate_var)
 
     def create_setting_option(self, frame, label, var, options):
         opt_frame = tk.Frame(frame)
@@ -151,6 +155,21 @@ class BlockApp:
         self.code_text.insert(tk.END, code)
 
     def generate_code(self):
+        dataset_name = self.dataset_var.get()
+        input_shape = "(28, 28, 1)"  # Default input shape
+        labels = []
+
+        if dataset_name == "mnist":
+            input_shape = "(28, 28, 1)"
+            labels = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+        elif dataset_name == "cifar10":
+            input_shape = "(32, 32, 3)"
+            labels = ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]
+        elif dataset_name == "fashion_mnist":
+            input_shape = "(28, 28, 1)"
+            labels = ["T-shirt/top", "Trouser", "Pullover", "Dress", "Coat", 
+                    "Sandal", "Shirt", "Sneaker", "Bag", "Ankle boot"]
+
         code = (
             "# Auto-generated Python code\n"
             "# Run this.py in terminal\n"
@@ -159,21 +178,21 @@ class BlockApp:
             "import tensorflow as tf\n"
             "from tensorflow.keras.layers import Dense, Conv2D, Activation, Resizing, AveragePooling2D, MaxPooling2D, Flatten\n"
             "from tensorflow.keras.optimizers import Adam, SGD\n"
-            "from tensorflow.keras.callbacks import Callback, EarlyStopping\n\n"
+            "from tensorflow.keras.callbacks import Callback, EarlyStopping\n"
+            "import numpy as np\n"
+            "import cv2\n\n"
             "tf.keras.backend.clear_session()\n"
-            "(x_train, y_train), (x_test, y_test) = tf.keras.datasets.fashion_mnist.load_data()\n\n"
+            f"(x_train, y_train), (x_test, y_test) = tf.keras.datasets.{dataset_name}.load_data()\n\n"
             "x_train, x_test = x_train / 255.0, x_test / 255.0\n"
-            "x_train = x_train[..., tf.newaxis]\n"
-            "x_test = x_test[..., tf.newaxis]\n\n"
+            "if len(x_train.shape) == 3:\n"
+            "    x_train = x_train[..., tf.newaxis]\n"
+            "    x_test = x_test[..., tf.newaxis]\n\n"
             "num_classes = 10\n"
             "train_one_hot = tf.keras.utils.to_categorical(y_train, num_classes)\n"
             "test_one_hot = tf.keras.utils.to_categorical(y_test, num_classes)\n\n"
-            "class PrintMetrics(Callback):\n"
-            "    def on_epoch_end(self, epoch, logs=None):\n"
-            "        print(f'Epoch {epoch+1}: val_loss = {logs['val_loss']}, val_accuracy = {logs['val_accuracy']}')\n\n"
             "def build_model(num_classes):\n"
-            "    model = tf.keras.Sequential([\n"
-            "        tf.keras.Input(shape=(28, 28, 1)),\n"
+            f"    model = tf.keras.Sequential([\n"
+            f"        tf.keras.Input(shape={input_shape}),\n"
         )
         start_connected = False
 
@@ -206,20 +225,39 @@ class BlockApp:
             "        Dense(num_classes, activation='softmax')\n"
             "    ])\n"
             "    return model\n\n"
-            "num_classes = 10  # Set this to the number of labels\n"
             "model = build_model(num_classes)\n"
         )
         optimizer = self.optimizer_var.get()
+        learning_rate = self.learning_rate_var.get()
         batch_size = self.batch_size_var.get()
         epochs = self.epochs_var.get()
         code += (
-            f'model.compile(optimizer={optimizer}(learning_rate=0.001), loss="categorical_crossentropy", metrics=["accuracy"])\n'
-            "callbacks = [EarlyStopping(monitor='val_loss', patience=3), PrintMetrics()]\n"
+            f'model.compile(optimizer={optimizer}(learning_rate={learning_rate}), loss="categorical_crossentropy", metrics=["accuracy"])\n'
+            "callbacks = [EarlyStopping(monitor='val_loss', patience=3)]\n"
             f"model.fit(x_train, train_one_hot, batch_size={batch_size}, epochs={epochs}, callbacks=callbacks, validation_data=(x_test, test_one_hot))\n"
+        )
+
+        code += (
+            "prediction = model.predict(x_test)\n\n"
+            "N = np.random.randint(0, high=len(x_test), dtype=int)\n"
+            f"labels = {labels}\n"
+            "print(f'sum: {np.sum(prediction, axis=1)}')\n"
+            "print(f'predict index: {np.argmax(prediction, axis=1)}')\n"
+            "print(f'Predict: {labels[np.argmax(prediction, axis=1)[N]]}')\n"
+            "print(f'Correct: {labels[y_test[N][0]]}')\n\n"
+            "image = x_test[N]\n"
+            "if image.shape[-1] == 1:\n"
+            "    image = image.reshape(image.shape[0], image.shape[1]) * 255\n\n"
+            
+            "cv2.namedWindow('img',cv2.WINDOW_NORMAL)\n"
+            "cv2.imshow('img', image)\n"
+            "cv2.resizeWindow('img',300,300)\n"
+            "cv2.waitKey(0)\n"
+            "cv2.destroyAllWindows()\n"
+            
         )
         
         return code
-
     def delete_block(self, block):
         self.canvas.delete(block.id)
         self.canvas.delete(block.text_id)
