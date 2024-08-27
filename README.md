@@ -17,7 +17,7 @@ to discuss what you would like to change.
 
 Please make sure to update tests as appropriate.
 
-It is the first project sent to github. Please correct me if there is any mistakes. :)
+It is my first project sent to github. Please correct me if there is any mistakes. :)
 
 ## License
 
