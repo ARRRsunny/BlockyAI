@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 
+
 class Block:
     def __init__(self, canvas, x, y, text, app, input_field=False, resize_field=False, deletable=True):
         self.canvas = canvas
@@ -10,11 +11,39 @@ class Block:
         self.resize_field = resize_field
         self.deletable = deletable
         self.connected = False
-        self.id = canvas.create_rectangle(x, y, x + 100, y + 50, fill="skyblue", outline="")
+        
+        self.layer_colors_notconnected = {
+            "Starting Block": "lightgreen",
+            "Dense Layer": "sky blue",
+            "Conv2D Layer": "orange",
+            "Flatten": "purple",
+            "Activation": "pink",
+            "Resizing Layer": "yellow",
+            "AveragePooling2D Layer": "cyan",
+            "MaxPooling2D Layer": "red",
+            "Output Layer": "magenta"
+        }
+
+        self.layer_colors_connected = {
+            "Starting Block": "lightgreen",
+            "Dense Layer": "lightblue",
+            "Conv2D Layer": "lightsalmon",
+            "Flatten": "pale violet red",
+            "Activation": "light pink",
+            "Resizing Layer": "light goldenrod",
+            "AveragePooling2D Layer": "cyan3",
+            "MaxPooling2D Layer": "red3",
+            "Output Layer": "orchid1"
+        }
+
+        colour = self.layer_colors_connected[text]
+
+        self.id = canvas.create_rectangle(x, y, x + 100, y + 50, fill=colour, outline="")
         self.text_id = canvas.create_text(x + 50, y + 15, text=text, fill="black", font=("Arial", 10, "bold"))
         self.entry = tk.Entry(canvas, bg="white") if input_field or resize_field else None
-
         
+
+
         if self.entry:
             self.entry.place(x=x + 10, y=y + 25, width=80)
         self.bind_events()
@@ -39,6 +68,7 @@ class Block:
         self.update_transparency()
         if self.deletable and self.app.check_delete_area(event.x, event.y):
             self.app.delete_block(self)
+        self.app.update_model_graph() 
 
     def check_connection(self):
         for block in self.canvas.find_withtag("block"):
@@ -47,6 +77,7 @@ class Block:
                 bx1, by1, bx2, by2 = self.canvas.coords(self.id)
                 if abs(bx1 - x1) < 10 and abs(by1 - y2) < 10:
                     self.align_with_block(x1, y2)
+                    
                     return True
         return False
 
@@ -55,21 +86,27 @@ class Block:
         self.canvas.coords(self.text_id, x1 + 50, y2 + 15)
         if self.entry:
             self.entry.place(x=x1 + 10, y=y2 + 25)
+    
 
     def update_transparency(self):
-        fill_color = "lightblue" if not self.connected and self.text != "Starting Block" else "skyblue"
-        self.canvas.itemconfig(self.id, fill=fill_color)
+        if not self.connected and self.text != "Starting Block" :
+            colour = self.layer_colors_connected[self.text]
+        else:
+            colour = self.layer_colors_notconnected[self.text]
+
+
+
+        self.canvas.itemconfig(self.id, fill=colour)
 
     def get_value(self):
         return self.entry.get() if self.entry else None
 
 
-    
 class BlockApp:
     def __init__(self, root):
         self.root = root
         self.root.title("BlockyAI_v1.1")
-        self.root.geometry("1600x700")
+        self.root.geometry("1600x950")
         self.style = ttk.Style()
         self.style.configure("TFrame", background="whitesmoke")
         self.style.configure("TButton", font=("Arial", 10, "bold"), foreground="black")
@@ -83,13 +120,23 @@ class BlockApp:
 
         self.blocks = []
 
-        self.setup_ui()
-
-    def setup_ui(self):
         self.create_code_frame()
+        self.create_model_graph_area()
         self.create_canvas()
         self.create_block_holder()
         self.create_settings_frame()
+
+        self.layer_colors = {
+            "Starting Block": "lightgreen",
+            "Dense Layer": "sky blue",
+            "Conv2D Layer": "orange",
+            "Flatten": "purple",
+            "Activation": "pink",
+            "Resizing Layer": "yellow",
+            "AveragePooling2D Layer": "cyan",
+            "MaxPooling2D Layer": "red",
+            "Output Layer": "magenta"
+        }
 
     def create_code_frame(self):
         code_frame = ttk.Frame(self.root)
@@ -97,14 +144,14 @@ class BlockApp:
         ttk.Label(code_frame, text="Code").pack()
         self.code_text = tk.Text(code_frame, bg="lightyellow", font=("Courier", 9))
         self.code_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
     def create_canvas(self):
-        self.canvas = tk.Canvas(self.root, bg="whitesmoke")
-        self.canvas.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        canvas_frame = ttk.Frame(self.root)
+        canvas_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        self.canvas = tk.Canvas(canvas_frame, bg="whitesmoke")
+        self.canvas.pack(fill=tk.BOTH, expand=True)
         self.canvas.create_text(400, 20, text="Canvas", font=("Arial", 14, "bold"), fill="black")
         self.canvas.bind("<Configure>", self.on_canvas_resize)
-
-    def on_canvas_resize(self, event):
-        self.update_delete_area(event.width, event.height)
 
     def create_block_holder(self):
         block_holder = ttk.Frame(self.root)
@@ -129,6 +176,22 @@ class BlockApp:
         self.create_setting_entry(settings_frame, "Epochs:", self.epochs_var)
         self.create_setting_entry(settings_frame, "Learning Rate:", self.learning_rate_var)
 
+    def create_model_graph_area(self):
+        graph_frame = ttk.Frame(self.root)
+        graph_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=10)
+        self.graph_canvas = tk.Canvas(graph_frame, bg="lightgrey", height=380)
+        self.graph_canvas.pack(fill=tk.X)
+
+    def on_canvas_resize(self, event):
+        self.update_delete_area(event.width, event.height)
+
+    def create_setting_entry(self, frame, label, var):
+        entry_frame = ttk.Frame(frame)
+        entry_frame.pack(pady=5)
+        ttk.Label(entry_frame, text=label).pack(side=tk.LEFT)
+        ttk.Entry(entry_frame, textvariable=var, width=5).pack(side=tk.LEFT)
+        var.trace_add("write", lambda *args: self.update_code_display())
+
     def create_setting_option(self, frame, label, var, options):
         opt_frame = ttk.Frame(frame)
         opt_frame.pack(pady=5)
@@ -141,18 +204,82 @@ class BlockApp:
         canvas_width = self.canvas.winfo_width()
         canvas_height = self.canvas.winfo_height()
         return x > canvas_width - 110 and y > canvas_height - 60
-    
-    def create_setting_entry(self, frame, label, var):
-        entry_frame = ttk.Frame(frame)
-        entry_frame.pack(pady=5)
-        ttk.Label(entry_frame, text=label).pack(side=tk.LEFT)
-        ttk.Entry(entry_frame, textvariable=var, width=5).pack(side=tk.LEFT)
-        var.trace_add("write", lambda *args: self.update_code_display())
 
     def update_delete_area(self, canvas_width, canvas_height):
         self.canvas.delete("delete_area")
-        self.canvas.create_rectangle(canvas_width - 110, canvas_height - 60, canvas_width -10 , canvas_height -10 , fill="red", tags="delete_area")
+        self.canvas.create_rectangle(canvas_width - 110, canvas_height - 60, canvas_width - 10, canvas_height - 10, fill="red", tags="delete_area")
         self.canvas.create_text(canvas_width - 60, canvas_height - 35, text="Delete", fill="white", font=("Arial", 10, "bold"), tags="delete_area")
+
+    def update_model_graph(self):
+        self.graph_canvas.delete("all")
+        canvas_height = 380    #line 182
+        x_offset = 50
+
+
+        prev_layer_positions = []
+
+        input_y = canvas_height // 2
+        self.graph_canvas.create_rectangle(
+            x_offset - 30, input_y - 30,
+            x_offset + 30, input_y + 30,
+            fill="lightgreen"
+        )
+        prev_layer_positions.append((x_offset, input_y))
+        x_offset += 100
+
+        connected_blocks = [block for block in self.blocks if block.connected]
+        flatten_reached = False
+
+        for idx, block in enumerate(sorted(connected_blocks, key=lambda b: self.canvas.coords(b.id)[1])):
+            text = self.canvas.itemcget(block.text_id, "text")
+            color = self.layer_colors.get(text, "black")
+            units = int(block.get_value() or 7)
+
+            mid = round((units/2)-0.5)
+            current_layer_positions = []
+
+            for i in range(min(units, 8)):
+                y_offset = input_y + (i - mid) * 30
+                if flatten_reached:
+                    self.graph_canvas.create_oval(
+                        x_offset - 20, y_offset - 20, 
+                        x_offset + 20, y_offset + 20, 
+                        fill=color
+                    )
+                else:
+                    self.graph_canvas.create_rectangle(
+                        x_offset - 20, y_offset - 20, 
+                        x_offset + 20, y_offset + 20, 
+                        fill=color
+                    )
+                current_layer_positions.append((x_offset, y_offset))
+
+            if flatten_reached:
+                for i in range(min(units, 8)):
+                    y_offset = input_y + (i - mid) * 30
+                    for prev_x, prev_y in prev_layer_positions:
+                        self.graph_canvas.create_line(prev_x, prev_y, x_offset, y_offset, fill="black")
+            else:
+                for i in range(len(prev_layer_positions)):
+                    prev_x, prev_y = prev_layer_positions[i]
+                    curr_x, curr_y = current_layer_positions[i % len(current_layer_positions)]
+                    self.graph_canvas.create_line(prev_x, prev_y, curr_x, curr_y, arrow=tk.LAST if not flatten_reached else None, fill="black")
+
+            if text == "Flatten":
+                flatten_reached = True
+
+            prev_layer_positions = current_layer_positions
+            x_offset += 100
+
+        for i in range(5):
+            y_offset = input_y + (i - 2) * 30
+            self.graph_canvas.create_oval(
+                x_offset - 20, y_offset - 20, 
+                x_offset + 20, y_offset + 20, 
+                fill="magenta"
+            )
+            for prev_x, prev_y in prev_layer_positions:
+                self.graph_canvas.create_line(prev_x, prev_y, x_offset, y_offset, fill="black")
 
     def add_button(self, parent, text, start=False, input_field=False, resize_field=False, deletable=True):
         button = ttk.Button(parent, text=text, command=lambda: self.add_block(text, input_field, resize_field, deletable))
@@ -166,6 +293,7 @@ class BlockApp:
         self.blocks.append(block)
         self.canvas.addtag_withtag("block", block.id)
         self.update_code_display()
+        self.update_model_graph()
 
     def update_code_display(self, *args):
         code = self.generate_code()
@@ -189,10 +317,16 @@ class BlockApp:
                       "Sandal", "Shirt", "Sneaker", "Bag", "Ankle boot"]
 
         code = (
+            "#BlockyAI_v1.2"
+            "#created by @ARRRsunny\n"
+            "#https://github.com/ARRRsunny/BlockyAI\n\n"
             "# Auto-generated Python code\n"
-            "# Run this.py in terminal\n"
-            "# TensorFlow 2.17.0\n"
-            "# Python 3.10.4\n\n"
+            "# Run this.py and it will start train a show a prediction\n"
+            "#Python version: 3.10.4\n"
+            "#Tensorflow version: 2.17\n"
+            "#OpenCV version: 4.10.0\n"
+            "#Numpy version: 1.26.4\n"
+            "#Tkinter\n\n"
             "import tensorflow as tf\n"
             "from tensorflow.keras.layers import Dense, Conv2D, Activation, Resizing, AveragePooling2D, MaxPooling2D, Flatten\n"
             "from tensorflow.keras.optimizers import Adam, SGD\n"
@@ -205,7 +339,8 @@ class BlockApp:
             "if len(x_train.shape) == 3:\n"
             "    x_train = x_train[..., tf.newaxis]\n"
             "    x_test = x_test[..., tf.newaxis]\n\n"
-            "num_classes = 10\n"
+            f"labels = {labels}\n"
+            "num_classes = len(lables)\n\n"
             "train_one_hot = tf.keras.utils.to_categorical(y_train, num_classes)\n"
             "test_one_hot = tf.keras.utils.to_categorical(y_test, num_classes)\n\n"
             "def build_model(num_classes):\n"
@@ -251,14 +386,13 @@ class BlockApp:
         epochs = self.epochs_var.get()
         code += (
             f'model.compile(optimizer={optimizer}(learning_rate={learning_rate}), loss="categorical_crossentropy", metrics=["accuracy"])\n'
-            "callbacks = [EarlyStopping(monitor='val_loss', patience=3)]\n"
+            "callbacks = [EarlyStopping(monitor='accuracy', patience=3)]\n"
             f"model.fit(x_train, train_one_hot, batch_size={batch_size}, epochs={epochs}, callbacks=callbacks, validation_data=(x_test, test_one_hot))\n"
         )
 
         code += (
             "prediction = model.predict(x_test)\n\n"
-            "N = np.random.randint(0, high=len(x_test), dtype=int)\n"
-            f"labels = {labels}\n"
+            "N = np.random.randint(0, high=len(x_test), dtype=int)\n\n"
             "print(f'sum: {np.sum(prediction, axis=1)}')\n"
             "print(f'predict index: {np.argmax(prediction, axis=1)}')\n"
             "print(f'Predict: {labels[np.argmax(prediction, axis=1)[N]]}')\n"
@@ -266,14 +400,14 @@ class BlockApp:
             "image = x_test[N]\n"
             "if image.shape[-1] == 1:\n"
             "    image = image.reshape(image.shape[0], image.shape[1]) * 255\n\n"
-            
+            "#model.save('Model.h5')\n\n"
             "cv2.namedWindow('img',cv2.WINDOW_NORMAL)\n"
             "cv2.imshow('img', image)\n"
             "cv2.resizeWindow('img',300,300)\n"
             "cv2.waitKey(0)\n"
             "cv2.destroyAllWindows()\n"
         )
-        
+
         return code
 
     def delete_block(self, block):
@@ -283,6 +417,8 @@ class BlockApp:
             block.entry.destroy()
         self.blocks.remove(block)
         self.update_code_display()
+        self.update_model_graph()
+
 
 root = tk.Tk()
 app = BlockApp(root)
