@@ -1,6 +1,9 @@
 import tkinter as tk
 from tkinter import ttk
-
+from tkinter import messagebox
+import os
+import subprocess
+import platform
 
 class Block:
     def __init__(self, canvas, x, y, text, app, input_field=False, resize_field=False, deletable=True):
@@ -11,38 +14,22 @@ class Block:
         self.resize_field = resize_field
         self.deletable = deletable
         self.connected = False
-        
-        self.layer_colors_notconnected = {
-            "Starting Block": "lightgreen",
-            "Dense Layer": "sky blue",
-            "Conv2D Layer": "orange",
-            "Flatten": "purple",
-            "Activation": "pink",
-            "Resizing Layer": "yellow",
-            "AveragePooling2D Layer": "cyan",
-            "MaxPooling2D Layer": "red",
-            "Output Layer": "magenta"
+
+        self.colors = {
+            "Starting Block": ("lightgreen", "lightgreen"),
+            "Dense Layer": ("sky blue", "lightblue"),
+            "Conv2D Layer": ("orange", "lightsalmon"),
+            "Flatten": ("purple", "pale violet red"),
+            "Activation": ("pink", "light pink"),
+            "Resizing Layer": ("yellow", "light goldenrod"),
+            "AveragePooling2D Layer": ("cyan", "cyan3"),
+            "MaxPooling2D Layer": ("red", "red3"),
+            "Output Layer": ("magenta", "orchid1")
         }
 
-        self.layer_colors_connected = {
-            "Starting Block": "lightgreen",
-            "Dense Layer": "lightblue",
-            "Conv2D Layer": "lightsalmon",
-            "Flatten": "pale violet red",
-            "Activation": "light pink",
-            "Resizing Layer": "light goldenrod",
-            "AveragePooling2D Layer": "cyan3",
-            "MaxPooling2D Layer": "red3",
-            "Output Layer": "orchid1"
-        }
-
-        colour = self.layer_colors_connected[text]
-
-        self.id = canvas.create_rectangle(x, y, x + 100, y + 50, fill=colour, outline="")
+        self.id = canvas.create_rectangle(x, y, x + 100, y + 50, fill=self.colors[text][1], outline="")
         self.text_id = canvas.create_text(x + 50, y + 15, text=text, fill="black", font=("Arial", 10, "bold"))
         self.entry = tk.Entry(canvas, bg="white") if input_field or resize_field else None
-        
-
 
         if self.entry:
             self.entry.place(x=x + 10, y=y + 25, width=80)
@@ -68,7 +55,7 @@ class Block:
         self.update_transparency()
         if self.deletable and self.app.check_delete_area(event.x, event.y):
             self.app.delete_block(self)
-        self.app.update_model_graph() 
+        self.app.update_model_graph()
 
     def check_connection(self):
         for block in self.canvas.find_withtag("block"):
@@ -77,7 +64,6 @@ class Block:
                 bx1, by1, bx2, by2 = self.canvas.coords(self.id)
                 if abs(bx1 - x1) < 10 and abs(by1 - y2) < 10:
                     self.align_with_block(x1, y2)
-                    
                     return True
         return False
 
@@ -86,21 +72,13 @@ class Block:
         self.canvas.coords(self.text_id, x1 + 50, y2 + 15)
         if self.entry:
             self.entry.place(x=x1 + 10, y=y2 + 25)
-    
 
     def update_transparency(self):
-        if not self.connected and self.text != "Starting Block" :
-            colour = self.layer_colors_connected[self.text]
-        else:
-            colour = self.layer_colors_notconnected[self.text]
-
-
-
+        colour = self.colors[self.text][1] if not self.connected and self.text != "Starting Block" else self.colors[self.text][0]
         self.canvas.itemconfig(self.id, fill=colour)
 
     def get_value(self):
         return self.entry.get() if self.entry else None
-
 
 class BlockApp:
     def __init__(self, root):
@@ -119,31 +97,64 @@ class BlockApp:
         self.learning_rate_var = tk.DoubleVar(value=0.001)
 
         self.blocks = []
+        self.create_ui()
 
+        print("The model will be shown on this console")
+
+    def create_ui(self):
         self.create_code_frame()
         self.create_model_graph_area()
         self.create_canvas()
         self.create_block_holder()
         self.create_settings_frame()
 
-        self.layer_colors = {
-            "Starting Block": "lightgreen",
-            "Dense Layer": "sky blue",
-            "Conv2D Layer": "orange",
-            "Flatten": "purple",
-            "Activation": "pink",
-            "Resizing Layer": "yellow",
-            "AveragePooling2D Layer": "cyan",
-            "MaxPooling2D Layer": "red",
-            "Output Layer": "magenta"
-        }
 
     def create_code_frame(self):
         code_frame = ttk.Frame(self.root)
         code_frame.pack(side=tk.LEFT, fill=tk.BOTH, padx=10, pady=10, expand=True)
         ttk.Label(code_frame, text="Code").pack()
+
+        self.code_run = ttk.Button(code_frame, text="Run", command=self.run_code)
+        self.code_run.pack(side="bottom", fill=tk.X, padx=10, pady=8, expand=False)  
+
         self.code_text = tk.Text(code_frame, bg="lightyellow", font=("Courier", 9))
-        self.code_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.code_text.pack(side=tk.LEFT, fill=tk.BOTH, padx=10, pady=10, expand=True)
+        
+    def get_nonexistant_path(self,fname_path):
+        if not os.path.exists(fname_path):
+            return fname_path
+        filename, file_extension = os.path.splitext(fname_path)
+        i = 1
+        new_fname = "{}-{}{}".format(filename, i, file_extension)
+        while os.path.exists(new_fname):
+            i += 1
+            new_fname = "{}-{}{}".format(filename, i, file_extension)
+
+        return new_fname
+
+    def run_code(self):
+        filepath = self.get_nonexistant_path("Auto_gen.py")
+        try:
+            with open(filepath, "w") as file:
+                file.write(self.generate_code())
+            print(f"Code saved to {filepath}")
+            
+            try:
+                python_path = os.environ.get('PYTHON_PATH', 'python')
+                if platform.system() == "Windows":
+                    subprocess.Popen([python_path, filepath], shell=True)
+                elif platform.system() == "Darwin":  # macOS
+                    subprocess.Popen(["/usr/bin/open", "-a", "Terminal", python_path, filepath])
+                else:  # Linux
+                    subprocess.Popen(["gnome-terminal", "--", python_path, filepath])
+                
+                messagebox.showinfo("Success", "File run successfully.")
+            except Exception as e:
+                print(f"Error running file: {e}")
+                messagebox.showinfo("Failed", "File cannot be run.")
+        except Exception as e:
+            print(f"Error saving file: {e}")
+            messagebox.showinfo("Failed", "File cannot be saved.")
 
     def create_canvas(self):
         canvas_frame = ttk.Frame(self.root)
@@ -157,14 +168,18 @@ class BlockApp:
         block_holder = ttk.Frame(self.root)
         block_holder.pack(side=tk.TOP, fill=tk.X, padx=10, pady=10)
         ttk.Label(block_holder, text="Blocks").pack()
-        self.add_button(block_holder, "Starting Block", start=True, deletable=False)
-        self.add_button(block_holder, "Dense Layer", input_field=True)
-        self.add_button(block_holder, "Conv2D Layer", input_field=True)
-        self.add_button(block_holder, "Flatten")
-        self.add_button(block_holder, "Activation")
-        self.add_button(block_holder, "Resizing Layer", resize_field=True)
-        self.add_button(block_holder, "AveragePooling2D Layer")
-        self.add_button(block_holder, "MaxPooling2D Layer")
+        block_types = [
+            ("Starting Block", False, False, False),
+            ("Dense Layer", True, False, True),
+            ("Conv2D Layer", True, False, True),
+            ("Flatten", False, False, True),
+            ("Activation", False, False, True),
+            ("Resizing Layer", False, True, True),
+            ("AveragePooling2D Layer", False, False, True),
+            ("MaxPooling2D Layer", False, False, True),
+        ]
+        for text, input_field, resize_field, deletable in block_types:
+            self.add_button(block_holder, text, input_field, resize_field, deletable)
 
     def create_settings_frame(self):
         settings_frame = ttk.Frame(self.root)
@@ -212,12 +227,10 @@ class BlockApp:
 
     def update_model_graph(self):
         self.graph_canvas.delete("all")
-        canvas_height = 380    #line 182
+        canvas_height = 380
         x_offset = 50
 
-
         prev_layer_positions = []
-
         input_y = canvas_height // 2
         self.graph_canvas.create_rectangle(
             x_offset - 30, input_y - 30,
@@ -232,7 +245,7 @@ class BlockApp:
 
         for idx, block in enumerate(sorted(connected_blocks, key=lambda b: self.canvas.coords(b.id)[1])):
             text = self.canvas.itemcget(block.text_id, "text")
-            color = self.layer_colors.get(text, "black")
+            color = block.colors.get(text, "black")[0]
             units = int(block.get_value() or 7)
 
             mid = round((units/2)-0.5)
@@ -281,10 +294,10 @@ class BlockApp:
             for prev_x, prev_y in prev_layer_positions:
                 self.graph_canvas.create_line(prev_x, prev_y, x_offset, y_offset, fill="black")
 
-    def add_button(self, parent, text, start=False, input_field=False, resize_field=False, deletable=True):
+    def add_button(self, parent, text, input_field, resize_field, deletable):
         button = ttk.Button(parent, text=text, command=lambda: self.add_block(text, input_field, resize_field, deletable))
         button.pack(side=tk.TOP, padx=5, pady=5)
-        if start:
+        if text == "Starting Block":
             button.state(['disabled'])
             self.add_block(text, input_field, resize_field, deletable)
 
@@ -307,17 +320,20 @@ class BlockApp:
 
         if dataset_name == "mnist":
             input_shape = "(28, 28, 1)"
+            output = "{labels[y_test[N]]}"
             labels = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
         elif dataset_name == "cifar10":
             input_shape = "(32, 32, 3)"
+            output = "{labels[y_test[N][0]]}"
             labels = ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]
         elif dataset_name == "fashion_mnist":
             input_shape = "(28, 28, 1)"
+            output = "{labels[y_test[N]]}"
             labels = ["T-shirt/top", "Trouser", "Pullover", "Dress", "Coat", 
                       "Sandal", "Shirt", "Sneaker", "Bag", "Ankle boot"]
 
         code = (
-            "#BlockyAI_v1.2"
+            "#BlockyAI_v1.4\n"
             "#created by @ARRRsunny\n"
             "#https://github.com/ARRRsunny/BlockyAI\n\n"
             "# Auto-generated Python code\n"
@@ -340,7 +356,7 @@ class BlockApp:
             "    x_train = x_train[..., tf.newaxis]\n"
             "    x_test = x_test[..., tf.newaxis]\n\n"
             f"labels = {labels}\n"
-            "num_classes = len(lables)\n\n"
+            "num_classes = len(labels)\n\n"
             "train_one_hot = tf.keras.utils.to_categorical(y_train, num_classes)\n"
             "test_one_hot = tf.keras.utils.to_categorical(y_test, num_classes)\n\n"
             "def build_model(num_classes):\n"
@@ -396,14 +412,13 @@ class BlockApp:
             "print(f'sum: {np.sum(prediction, axis=1)}')\n"
             "print(f'predict index: {np.argmax(prediction, axis=1)}')\n"
             "print(f'Predict: {labels[np.argmax(prediction, axis=1)[N]]}')\n"
-            "print(f'Correct: {labels[y_test[N][0]]}')\n\n"
+            f"print(f'Correct: {output}')\n\n"
             "image = x_test[N]\n"
             "if image.shape[-1] == 1:\n"
-            "    image = image.reshape(image.shape[0], image.shape[1]) * 255\n\n"
-            "#model.save('Model.h5')\n\n"
-            "cv2.namedWindow('img',cv2.WINDOW_NORMAL)\n"
-            "cv2.imshow('img', image)\n"
+            "    image = image.reshape(image.shape)\n\n"
+            "cv2.namedWindow('img', cv2.WINDOW_NORMAL)\n"
             "cv2.resizeWindow('img',300,300)\n"
+            "cv2.imshow('img',image)\n"
             "cv2.waitKey(0)\n"
             "cv2.destroyAllWindows()\n"
         )
