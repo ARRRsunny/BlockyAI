@@ -24,7 +24,9 @@ class Block:
             "Resizing Layer": ("yellow", "light goldenrod"),
             "AveragePooling2D Layer": ("cyan", "cyan3"),
             "MaxPooling2D Layer": ("red", "red3"),
-            "Output Layer": ("magenta", "orchid1")
+            "Output Layer": ("magenta", "orchid1"),
+            "BatchNormalization Layer":("ivory2","ivory3"),
+            "Dropout":("thistle1","thistle2")
         }
 
         self.id = canvas.create_rectangle(x, y, x + 100, y + 50, fill=self.colors[text][1], outline="")
@@ -82,9 +84,10 @@ class Block:
 
 class BlockApp:
     def __init__(self, root):
+        self.version = "BlockyAI_v1.5"
         self.root = root
-        self.root.title("BlockyAI_v1.1")
-        self.root.geometry("1600x950")
+        self.root.title(self.version)
+        self.root.geometry("1600x970")
         self.style = ttk.Style()
         self.style.configure("TFrame", background="whitesmoke")
         self.style.configure("TButton", font=("Arial", 10, "bold"), foreground="black")
@@ -165,10 +168,28 @@ class BlockApp:
         self.canvas.bind("<Configure>", self.on_canvas_resize)
 
     def create_block_holder(self):
-        block_holder = ttk.Frame(self.root)
-        block_holder.pack(side=tk.TOP, fill=tk.X, padx=10, pady=10)
-        ttk.Label(block_holder, text="Blocks").pack()
-        block_types = [
+        block_holder_frame = ttk.Frame(self.root)
+        block_holder_frame.pack(side=tk.TOP, fill=tk.X, padx=25, pady=10)
+        ttk.Label(block_holder_frame, text="Blocks").pack()
+
+        block_holder_canvas = tk.Canvas(block_holder_frame, height=300, width=200)
+        block_holder_scrollbar = ttk.Scrollbar(block_holder_frame, orient="vertical", command=block_holder_canvas.yview)
+        block_holder_scrollable_frame = ttk.Frame(block_holder_canvas)
+
+        block_holder_scrollable_frame.bind(
+            "<Configure>",
+            lambda e: block_holder_canvas.configure(
+                scrollregion=block_holder_canvas.bbox("all")
+            )
+        )
+
+        block_holder_canvas.create_window((0, 0), window=block_holder_scrollable_frame, anchor="nw")
+        block_holder_canvas.configure(yscrollcommand=block_holder_scrollbar.set)
+
+        block_holder_canvas.pack(side="left", fill="y", expand=False)
+        block_holder_scrollbar.pack(side="right", fill="y")
+
+        block_types = [                                         #Text Label.Input Field (True/False).Resize Field (True/False).Deletable (True/False).
             ("Starting Block", False, False, False),
             ("Dense Layer", True, False, True),
             ("Conv2D Layer", True, False, True),
@@ -177,9 +198,12 @@ class BlockApp:
             ("Resizing Layer", False, True, True),
             ("AveragePooling2D Layer", False, False, True),
             ("MaxPooling2D Layer", False, False, True),
+            ("BatchNormalization Layer", False, False, True),
+            ("Dropout",True,False,True)
         ]
+
         for text, input_field, resize_field, deletable in block_types:
-            self.add_button(block_holder, text, input_field, resize_field, deletable)
+            self.add_button(block_holder_scrollable_frame, text, input_field, resize_field, deletable)
 
     def create_settings_frame(self):
         settings_frame = ttk.Frame(self.root)
@@ -333,7 +357,7 @@ class BlockApp:
                       "Sandal", "Shirt", "Sneaker", "Bag", "Ankle boot"]
 
         code = (
-            "#BlockyAI_v1.4\n"
+            f"#{self.version}\n"
             "#created by @ARRRsunny\n"
             "#https://github.com/ARRRsunny/BlockyAI\n\n"
             "# Auto-generated Python code\n"
@@ -344,9 +368,9 @@ class BlockApp:
             "#Numpy version: 1.26.4\n"
             "#Tkinter\n\n"
             "import tensorflow as tf\n"
-            "from tensorflow.keras.layers import Dense, Conv2D, Activation, Resizing, AveragePooling2D, MaxPooling2D, Flatten\n"
-            "from tensorflow.keras.optimizers import Adam, SGD\n"
-            "from tensorflow.keras.callbacks import Callback, EarlyStopping\n"
+            "from tensorflow.keras.layers import *\n"
+            "from tensorflow.keras.optimizers import *\n"
+            "from tensorflow.keras.callbacks import *\n"
             "import numpy as np\n"
             "import cv2\n\n"
             "tf.keras.backend.clear_session()\n"
@@ -378,7 +402,7 @@ class BlockApp:
                     filters = block.get_value() or 32
                     code += f"        Conv2D({filters}, kernel_size=(3, 3), activation='relu'),\n"
                 elif text == "Activation":
-                    code += "        Activation('softmax'),\n"
+                    code += "        Activation('relu'),\n"
                 elif text == "Resizing Layer":
                     size = block.get_value()
                     width, height = map(str.strip, size.split(',')) if size else (64, 64)
@@ -389,6 +413,11 @@ class BlockApp:
                     code += "        MaxPooling2D(pool_size=(2, 2)),\n"
                 elif text == "Flatten":
                     code += "        Flatten(),\n"
+                elif text == "BatchNormalization Layer":
+                    code += "        BatchNormalization(),\n"
+                elif text == "Dropout":
+                    Dropout = block.get_value() or 0.1
+                    code += f"        Dropout({Dropout}),\n"
 
         code += (
             "        Dense(num_classes, activation='softmax')\n"
