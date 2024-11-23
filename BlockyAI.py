@@ -96,7 +96,7 @@ class BlockApp:
         self.dataset_var = tk.StringVar(value="fashion_mnist")
         self.optimizer_var = tk.StringVar(value="Adam")
         self.batch_size_var = tk.IntVar(value=32)
-        self.epochs_var = tk.IntVar(value=50)
+        self.epochs_var = tk.IntVar(value=5)
         self.learning_rate_var = tk.DoubleVar(value=0.001)
 
         self.blocks = []
