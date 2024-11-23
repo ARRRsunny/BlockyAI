@@ -2,6 +2,7 @@
 
 BlockyAI is a drag-and-drop GUI application designed to empower senior developers, AI learners, and educators to easily create, visualize, and execute machine learning models. Inspired by tools like Micro:bit, BlockyAI simplifies the process of building AI models, making it accessible for all — even for primary school students. This tool encourages hands-on learning and teaching of AI concepts in a fun and interactive way.
 
+![BlockyAI](https://github.com/ARRRsunny/BlockyAI/blob/main/asset/image.png)
 ## Purpose
 
 The primary goal of BlockyAI is to make AI accessible to everyone, regardless of their programming expertise. Whether you're:
