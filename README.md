@@ -150,32 +150,62 @@ BlockyAI generates Python code that includes:
 Here’s a snippet of the kind of code BlockyAI generates:
 
 ```python
+
 import tensorflow as tf
 from tensorflow.keras.layers import *
 from tensorflow.keras.optimizers import *
+from tensorflow.keras.callbacks import *
 import numpy as np
 import cv2
 
 tf.keras.backend.clear_session()
-(x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
+(x_train, y_train), (x_test, y_test) = tf.keras.datasets.fashion_mnist.load_data()
 
 x_train, x_test = x_train / 255.0, x_test / 255.0
-x_train = x_train[..., tf.newaxis]
-x_test = x_test[..., tf.newaxis]
+if len(x_train.shape) == 3:
+    x_train = x_train[..., tf.newaxis]
+    x_test = x_test[..., tf.newaxis]
 
-labels = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+labels = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat', 'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']
 num_classes = len(labels)
 
-model = tf.keras.Sequential([
-    Conv2D(32, kernel_size=(3, 3), activation='relu', input_shape=(28, 28, 1)),
-    MaxPooling2D(pool_size=(2, 2)),
-    Flatten(),
-    Dense(128, activation='relu'),
-    Dense(num_classes, activation='softmax')
-])
+train_one_hot = tf.keras.utils.to_categorical(y_train, num_classes)
+test_one_hot = tf.keras.utils.to_categorical(y_test, num_classes)
 
+def build_model(num_classes):
+    model = tf.keras.Sequential([
+        tf.keras.Input(shape=(28, 28, 1)),
+        Conv2D(32, kernel_size=(3, 3), activation='relu'),
+        AveragePooling2D(pool_size=(2, 2)),
+        Flatten(),
+        Dense(128, activation='relu'),
+        Dense(num_classes, activation='softmax')
+    ])
+    return model
+
+model = build_model(num_classes)
 model.compile(optimizer=Adam(learning_rate=0.001), loss="categorical_crossentropy", metrics=["accuracy"])
-model.fit(x_train, tf.keras.utils.to_categorical(y_train, num_classes), batch_size=32, epochs=5)
+callbacks = [EarlyStopping(monitor='accuracy', patience=3)]
+model.fit(x_train, train_one_hot, batch_size=32, epochs=5, callbacks=callbacks, validation_data=(x_test, test_one_hot))
+prediction = model.predict(x_test)
+
+N = np.random.randint(0, high=len(x_test), dtype=int)
+
+print(f'sum: {np.sum(prediction, axis=1)}')
+print(f'predict index: {np.argmax(prediction, axis=1)}')
+print(f'Predict: {labels[np.argmax(prediction, axis=1)[N]]}')
+print(f'Correct: {labels[y_test[N]]}')
+
+image = x_test[N]
+if image.shape[-1] == 1:
+    image = image.reshape(image.shape)
+
+cv2.namedWindow('img', cv2.WINDOW_NORMAL)
+cv2.resizeWindow('img',300,300)
+cv2.imshow('img',image)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+
 ```
 
 ---
