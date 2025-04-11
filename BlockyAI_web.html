@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BlockyAI v1.5</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial;
+            background: whitesmoke;
+            height: 100vh;
+            display: grid;  
+            grid-template-columns: 800px 1fr 200px; /* Left | Middle | Right */
+            grid-template-rows: 1fr 300px; /* Same row heights */
+            gap: 20px;
+        }
+        .copy-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 5px 10px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            z-index: 100;
+        }
+        .copy-button:hover {
+            background: #45a049;
+        }
+        .code-panel {
+            position: relative;
+            padding-top: 40px; /* Make space for button */
+        }
+        .block-palette {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            overflow-y: auto;
+            height: 100%;
+            grid-row: 1 / -1;
+            flex: 1; /* Take remaining space */
+
+        }
+        .block-node {
+            position: absolute;
+            width: 100px;
+            height: 70px;
+            border-radius: 5px;
+            display: flex;
+            padding: 8px;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-weight: bold;
+            cursor: move;
+            flex-direction: column;
+        }
+        .block-node-text {
+            margin-bottom: auto; /* Push to top */
+            padding: 4px;
+            z-index: 1; /* Keep text above input */
+        }
+        .block {
+            background: #f0f0f0;
+            padding: 10px;
+            margin: 5px;
+            border-radius: 3px;
+            cursor: move;
+            user-select: none;
+        }
+        .block-node input {
+            position: relative;
+            width: 80px;
+            bottom: auto;
+            left: auto;
+            margin-top: auto; /* Push input to bottom */
+            padding: 2px;
+            font-size: 12px;
+            z-index: 2;
+        }
+        .canvas-container {
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+            grid-column: 2; /* Middle column */
+            grid-row: 1; /* First row */
+        }
+        .model-graph-container {
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 10px;
+            grid-column: 2; /* Middle column */
+            grid-row: 2; /* Second row */
+        }
+        body > div:first-of-type {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            
+        }
+        .canvas-area {
+            flex: 1;
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .settings-panel {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            height: 300px;
+            margin-top: 20px;   
+            overflow: hidden;
+            
+        }
+
+        .code-panel {
+            background: lightyellow;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            font-family: monospace;
+            white-space: pre;
+            overflow: auto;
+            grid-column: 1; /* Left column */
+            grid-row: 1 / -1; /* Span all rows */
+            height: 100%;
+        }
+        
+        .model-graph {
+            height: 200px;
+            background: lightgrey;
+            margin-top: 20px;
+            border-radius: 5px;
+        }
+
+        .delete-area {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: red;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            z-index: 100;
+        }
+        
+        .model-canvas {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <body>
+    <!-- Left Column -->
+    <div class="code-panel" id="codePanel">
+        <button class="copy-button">Click to Copy</button>
+        <pre class="code-content"></pre>
+    </div>
+
+    <!-- Middle Column -->
+    <div class="canvas-container" id="canvas">
+        <div class="delete-area">Delete</div>
+    </div>
+    <div class="model-graph-container" id="modelGraph">
+        <div class="model-graph"></div>
+    </div>
+
+    <!-- Right Column -->
+    <div>
+        <div class="block-palette" id="blockPalette"></div>
+        <div class="settings-panel" id="settingsPanel"></div>
+    </div>
+</body> 
+    
+
+    <script>
+        class Block {
+            static COLORS = {
+                "Starting Block": ["lightgreen", "lightgreen"],
+                "Dense Layer": ["skyblue", "lightblue"],
+                "Conv2D Layer": ["orange", "lightsalmon"],
+                "Flatten": ["purple", "palevioletred"],
+                "Activation": ["pink", "lightpink"],
+                "Resizing Layer": ["yellow", "lightgoldenrodyellow"],
+                "AveragePooling2D Layer": ["cyan", "cyan"],
+                "MaxPooling2D Layer": ["red", "red"],
+                "Output Layer": ["magenta", "orchid"],
+                "BatchNormalization Layer": ["#eee", "#ddd"],
+                "Dropout": ["thistle", "thistle"]
+            };
+
+            constructor(app, x, y, text, inputField = false, resizeField = false, deletable = true) {
+                this.app = app;
+                this.text = text;
+                this.inputField = inputField;
+                this.resizeField = resizeField;
+                this.deletable = deletable;
+                this.connected = false;
+                this.x = x;
+                this.y = y;
+                this.isDragging = false;
+
+                // Create main block node
+                this.node = document.createElement('div');
+                this.node.className = 'block-node';
+                this.node.style.backgroundColor = Block.COLORS[text][1];
+                this.node.style.left = x + 'px';
+                this.node.style.top = y + 'px';
+
+                // Add text container
+                const textDiv = document.createElement('div');
+                textDiv.className = 'block-node-text';
+                textDiv.textContent = text;
+                this.node.appendChild(textDiv);
+
+                // Add input field if needed
+                if(inputField || resizeField) {
+                    this.input = document.createElement('input');
+                    this.input.type = 'text';
+                    this.input.placeholder = 'Value';
+                    this.input.style.width = '80px';
+                    this.input.style.marginTop = 'auto'; // Push to bottom
+                    this.node.appendChild(this.input);
+                }
+
+                // Initialize blocks array and settings
+                this.blocks = [];
+                this.settings = {
+                    dataset: "fashion_mnist",
+                    optimizer: "Adam",
+                    batch_size: 32,
+                    epochs: 5,
+                    learning_rate: 0.001
+                };
+
+                // Event listeners for dragging
+                this.node.addEventListener('mousedown', e => this.startDrag(e));
+                app.canvas.appendChild(this.node);
+            }
+
+            startDrag(e) {
+                this.isDragging = true;
+                this.offsetX = e.clientX - this.x;
+                this.offsetY = e.clientY - this.y;
+                document.addEventListener('mousemove', this.drag.bind(this));
+                document.addEventListener('mouseup', this.stopDrag.bind(this));
+            }
+
+            drag(e) {
+                if(!this.isDragging) return;
+                this.x = e.clientX - this.offsetX;
+                this.y = e.clientY - this.offsetY;
+                this.node.style.left = this.x + 'px';
+                this.node.style.top = this.y + 'px';
+                this.app.updateCode();
+                this.app.updateModelGraph();
+            }
+            findClosestSnapBlock() {
+                let closestBlock = null;
+                let minDistance = Infinity;
+                const snapThreshold = 60; // Max vertical distance to snap
+                const horizontalThreshold = 50; // Max horizontal misalignment
+
+                this.app.blocks.forEach(block => {
+                    if (block === this) return;
+
+                    const blockBottom = block.y + block.node.offsetHeight;
+                    const verticalDistance = this.y + 20 - blockBottom;
+                    const horizontalDistance = Math.abs(block.x - this.x);
+
+                    if (verticalDistance > 0 && verticalDistance < snapThreshold && horizontalDistance < horizontalThreshold) {
+                        if (verticalDistance < minDistance) {
+                            minDistance = verticalDistance;
+                            closestBlock = block;
+                        }
+                    }
+                });
+
+                return closestBlock;
+            }
+            stopDrag() {
+                this.isDragging = false;
+                const closestBlock = this.findClosestSnapBlock();
+                if (closestBlock) {
+                    // Snap to the closest block's position
+                    this.x = closestBlock.x;
+                    this.y = closestBlock.y + closestBlock.node.offsetHeight + 5;
+                    this.node.style.left = this.x + 'px';
+                    this.node.style.top = this.y + 'px';
+                    this.connected = true;
+                    closestBlock.connected = true;
+                } else {
+                    this.connected = this.app.blocks.some(block => 
+                        block !== this && 
+                        Math.abs(block.x - this.x) < 50 && 
+                        Math.abs(block.y - this.y) < 50
+                    );
+                }
+                this.updateColor();
+                if (this.deletable && this.app.checkDeleteArea(this.x, this.y)) {
+                    this.app.deleteBlock(this);
+                }
+                document.removeEventListener('mousemove', this.drag);
+                document.removeEventListener('mouseup', this.stopDrag);
+                this.app.updateCode();
+                this.app.updateModelGraph();
+            }
+
+
+
+            checkConnection() {
+                // Simplified connection logic
+                return this.app.blocks.some(block => 
+                    block !== this && 
+                    Math.abs(block.x - this.x) < 50 && 
+                    Math.abs(block.y - this.y) < 50
+                );
+            }
+
+            updateColor() {
+                this.node.style.backgroundColor = this.connected ? 
+                    Block.COLORS[this.text][0] : 
+                    Block.COLORS[this.text][1];
+            }
+
+            getValue() {
+                return this.input ? this.input.value : null;
+            }
+        }
+
+        class BlockyAI {
+            constructor() {
+                this.blocks = [];
+                this.canvas = document.getElementById('canvas');
+                this.settings = { // Initialize settings here
+                    dataset: "fashion_mnist",
+                    optimizer: "Adam",
+                    batch_size: 32,
+                    epochs: 5,
+                    learning_rate: 0.001
+                };
+                this.initBlocks();
+                this.initSettings();
+                this.initCopyButton();
+                this.updateCode();
+            }
+
+            initBlocks() {
+                const blockTypes = [
+                    ['Dense Layer', true, false, true],
+                    ['Conv2D Layer', true, false, true],
+                    ['Flatten', false, false, true],
+                    ['Activation', false, false, true],
+                    ['Resizing Layer', false, true, true],
+                    ['AveragePooling2D Layer', false, false, true],
+                    ['MaxPooling2D Layer', false, false, true],
+                    ['BatchNormalization Layer', false, false, true],   
+                    ['Dropout', true, false, true]
+                ];
+
+                blockTypes.forEach(([text, input, resize, deletable], i) => {
+                    const btn = document.createElement('div');
+                    btn.className = 'block';
+                    btn.textContent = text;
+                    btn.addEventListener('click', () => this.addBlock(text, input, resize, deletable));
+                    document.getElementById('blockPalette').appendChild(btn);
+                });
+
+                this.addBlock('Starting Block', false, false, false);
+            }
+
+            addBlock(text, input, resize, deletable) {
+                const block = new Block(this, 50, 50 + this.blocks.length * 60, text, input, resize, deletable);
+                this.blocks.push(block);
+            }
+
+            initSettings() {
+                const settingsPanel = document.getElementById('settingsPanel');
+                
+                const createSetting = (label, type, options, key) => {
+                    const div = document.createElement('div');
+                    div.innerHTML = `
+                        <label>${label}</label>
+                        ${type === 'select' ? 
+                            `<select class="setting-control" data-key="${key}">
+                                ${options.map(o => `<option>${o}</option>`).join('')}
+                            </select>` :
+                            `<input type="${type}" class="setting-control" data-key="${key}" value="${this.settings[key]}">`
+                        }
+                    `;
+                    div.querySelector('.setting-control').addEventListener('change', (e) => {
+                        this.settings[key] = type === 'number' ? 
+                            parseFloat(e.target.value) : e.target.value;
+                        this.updateCode();
+                    });
+                    settingsPanel.appendChild(div);
+                };
+
+                createSetting("Dataset:", 'select', ["fashion_mnist", "mnist", "cifar10"], 'dataset');
+                createSetting("Optimizer:", 'select', ["Adam", "SGD"], 'optimizer');
+                createSetting("Batch Size:", 'number', null, 'batch_size');
+                createSetting("Epochs:", 'number', null, 'epochs');
+                createSetting("Learning Rate:", 'number', null, 'learning_rate');
+            }
+            initCopyButton() {
+                const copyButton = document.querySelector('.copy-button');
+                copyButton.addEventListener('click', () => {
+                    const code = document.querySelector('.code-content').textContent;
+                    navigator.clipboard.writeText(code).then(() => {
+                        copyButton.textContent = "Copied!";
+                        setTimeout(() => {
+                            copyButton.textContent = "Click to Copy";
+                        }, 2000);
+                    }).catch(err => {
+                        console.error('Copy failed:', err);
+                    });
+                });
+            }
+            updateCode() {
+                const code = this.generateCode();
+
+                document.querySelector('.code-content').textContent = code;
+            }
+
+            sanitizeInput(value, defaultVal, isFloat = false) {
+                if (!value) return defaultVal;
+                const numeric = isFloat ? parseFloat(value) : parseInt(value);
+                return isNaN(numeric) ? defaultVal : numeric;
+            }
+
+            generateCode() {
+        const blocks = this.getConnectedBlocks();
+        const datasetConfig = {
+            fashion_mnist: {
+                shape: '(28, 28, 1)',
+                labels: ["T-shirt/top", "Trouser", "Pullover", "Dress", "Coat", 
+                        "Sandal", "Shirt", "Sneaker", "Bag", "Ankle boot"],
+                output: '{labels[y_test[N]]}'
+            },
+            mnist: {
+                shape: '(28, 28, 1)',
+                labels: "list(map(str, range(10)))",
+                output: '{labels[y_test[N]]}'
+            },
+            cifar10: {
+                shape: '(32, 32, 3)',
+                labels: ["airplane", "automobile", "bird", "cat", "deer", 
+                        "dog", "frog", "horse", "ship", "truck"],
+                output: '{labels[y_test[N][0]]}'
+            }
+        }[this.settings.dataset];
+
+        let code = `# BlockyAI v1.5
+# Created by @ARRRsunny
+# https://github.com/ARRRsunny/BlockyAI
+
+import tensorflow as tf
+from tensorflow.keras.layers import *
+from tensorflow.keras.optimizers import *
+from tensorflow.keras.callbacks import *
+import numpy as np
+import cv2
+
+tf.keras.backend.clear_session()
+(x_train, y_train), (x_test, y_test) = tf.keras.datasets.${this.settings.dataset}.load_data()
+
+x_train, x_test = x_train / 255.0, x_test / 255.0
+if len(x_train.shape) == 3:
+    x_train = x_train[..., tf.newaxis]
+    x_test = x_test[..., tf.newaxis]
+
+labels = ${JSON.stringify(datasetConfig.labels)}
+num_classes = len(labels)
+
+train_one_hot = tf.keras.utils.to_categorical(y_train, num_classes)
+test_one_hot = tf.keras.utils.to_categorical(y_test, num_classes)
+
+def build_model(num_classes):
+    model = tf.keras.Sequential([
+        tf.keras.Input(shape=${datasetConfig.shape}),\n`;
+
+        blocks.forEach(block => {
+            if(block.text === 'Starting Block') return;
+            
+            const value = block.getValue();
+            switch(block.text) {
+                case 'Dense Layer':
+                    const units = this.sanitizeInput(value, 128);
+                    code += `        Dense(${units}, activation='relu'),\n`;
+                    break;
+                
+                case 'Conv2D Layer':
+                    const filters = this.sanitizeInput(value, 32);
+                    code += `        Conv2D(${filters}, kernel_size=(3, 3), activation='relu'),\n`;
+                    break;
+                
+                case 'Flatten':
+                    code += `        Flatten(),\n`;
+                    break;
+                
+                case 'Resizing Layer':
+                    const size = value ? value.split(',').map(v => v.trim()) : [64, 64];
+                    code += `        Resizing(${size[0] || 64}, ${size[1] || 64}),\n`;
+                    break;
+                
+                case 'Dropout':
+                    const rate = this.sanitizeInput(value, 0.1, true);
+                    code += `        Dropout(${Math.min(0.9, Math.max(0, rate))}),\n`;
+                    break;
+                
+                case 'AveragePooling2D Layer':
+                    code += `        AveragePooling2D(pool_size=(2, 2)),\n`;
+                    break;
+                
+                case 'MaxPooling2D Layer':
+                    code += `        MaxPooling2D(pool_size=(2, 2)),\n`;
+                    break;
+                
+                case 'BatchNormalization Layer':
+                    code += `        BatchNormalization(),\n`;
+                    break;
+                
+                case 'Activation':
+                    code += `        Activation('relu'),\n`;
+                    break;
+            }
+        });
+
+        code += `        Dense(num_classes, activation='softmax')
+    ])
+    return model
+
+model = build_model(num_classes)
+model.compile(
+    optimizer=${this.settings.optimizer}(learning_rate=${this.settings.learning_rate}),
+    loss="categorical_crossentropy",
+    metrics=["accuracy"]
+)
+
+callbacks = [EarlyStopping(monitor='accuracy', patience=3)]
+model.fit(
+    x_train, train_one_hot,
+    batch_size=${this.settings.batch_size},
+    epochs=${this.settings.epochs},
+    callbacks=callbacks,
+    validation_data=(x_test, test_one_hot)
+)
+
+# Prediction and visualization
+prediction = model.predict(x_test)
+N = np.random.randint(0, high=len(x_test), dtype=int)
+
+print(f'sum: {np.sum(prediction, axis=1)}')
+print(f'predict index: {np.argmax(prediction, axis=1)}')
+print(f'Predict: {labels[np.argmax(prediction, axis=1)[N]]}')
+print(f'Correct: ${datasetConfig.output}')
+
+image = x_test[N]
+if image.shape[-1] == 1:
+    image = image.reshape(image.shape)
+
+cv2.namedWindow('img', cv2.WINDOW_NORMAL)
+cv2.resizeWindow('img', 300, 300)
+cv2.imshow('img', image)
+cv2.waitKey(0)
+cv2.destroyAllWindows()`;
+
+        return code;
+    }
+            checkDeleteArea(x, y) {
+                const rect = this.canvas.getBoundingClientRect();
+                return x > rect.width - 110 && y > rect.height - 60;
+            }
+
+            deleteBlock(block) {
+                this.blocks = this.blocks.filter(b => b !== block);
+                block.node.remove();
+                this.updateCode();
+            }
+
+            updateModelGraph() {
+                const modelGraph = document.getElementById('modelGraph');
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                modelGraph.innerHTML = '';
+                modelGraph.appendChild(canvas);
+                
+                const connectedBlocks = this.getConnectedBlocks().sort((a, b) => a.x - b.x);
+                const canvasWidth = modelGraph.offsetWidth;
+                const canvasHeight = modelGraph.offsetHeight;
+                canvas.width = canvasWidth;
+                canvas.height = canvasHeight;
+                
+                ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+                let xOffset = 50;
+                const startY = canvasHeight / 2;
+                let prevLayerPositions = [];
+                let flattenReached = false;
+
+                // Draw input layer
+                ctx.fillStyle = "lightgreen";
+                ctx.fillRect(xOffset - 30, startY - 30, 60, 60);
+                prevLayerPositions.push({ x: xOffset, y: startY });
+                xOffset += 100;
+
+                for (const block of connectedBlocks) {
+                    if (block.text === "Starting Block") continue;
+
+                    const color = Block.COLORS[block.text][0];
+                    let units = 7;
+                    
+                    if (block.input) {
+                        const value = block.input.value;
+                        units = parseInt(value) || 7;
+                    }
+                    units = Math.min(units, 8);
+                    const mid = Math.floor((units - 1) / 2);
+                    const currentLayerPositions = [];
+
+                    // Draw layer visualization
+                    for (let i = 0; i < units; i++) {
+                        const y = startY + (i - mid) * 30;
+                        currentLayerPositions.push({ x: xOffset, y });
+                        
+                        if (flattenReached) {
+                            // Draw dense/flatten layers as circles
+                            ctx.fillStyle = color;
+                            ctx.beginPath();
+                            ctx.arc(xOffset, y, 10, 0, Math.PI * 2);
+                            ctx.fill();
+                        } else {
+                            // Draw conv/pool layers as rectangles
+                            ctx.fillStyle = color;
+                            ctx.fillRect(xOffset - 15, y - 15, 30, 30);
+                        }
+                    }
+
+                    // Draw connections
+                    if (prevLayerPositions.length > 0) {
+                        ctx.strokeStyle = "#000";
+                        ctx.lineWidth = 1;
+                        
+                        if (flattenReached) {
+                            // Dense layers: all-to-all connections
+                            currentLayerPositions.forEach(currPos => {
+                                prevLayerPositions.forEach(prevPos => {
+                                    ctx.beginPath();
+                                    ctx.moveTo(prevPos.x, prevPos.y);
+                                    ctx.lineTo(currPos.x, currPos.y);
+                                    ctx.stroke();
+                                });
+                            });
+                        } else {
+                            // Conv/pool layers: parallel connections with arrows
+                            currentLayerPositions.forEach((currPos, i) => {
+                                const prevPos = prevLayerPositions[i % prevLayerPositions.length];
+                                ctx.beginPath();
+                                ctx.moveTo(prevPos.x, prevPos.y);
+                                ctx.lineTo(currPos.x, currPos.y);
+                                
+                                // Draw arrowhead
+                                const angle = Math.atan2(currPos.y - prevPos.y, currPos.x - prevPos.x);
+                                const arrowSize = 8;
+                                ctx.lineTo(
+                                    currPos.x - arrowSize * Math.cos(angle - Math.PI/6),
+                                    currPos.y - arrowSize * Math.sin(angle - Math.PI/6)
+                                );
+                                ctx.moveTo(currPos.x, currPos.y);
+                                ctx.lineTo(
+                                    currPos.x - arrowSize * Math.cos(angle + Math.PI/6),
+                                    currPos.y - arrowSize * Math.sin(angle + Math.PI/6)
+                                );
+                                ctx.stroke();
+                            });
+                        }
+                    }
+
+                    // Handle Flatten layer transition
+                    if (block.text === "Flatten") {
+                        // Special handling for Flatten layer connections
+                        ctx.fillStyle = Block.COLORS["Flatten"][0];
+                        currentLayerPositions.forEach(pos => {
+                            ctx.beginPath();
+                            ctx.arc(pos.x, pos.y, 10, 0, Math.PI * 2);
+                            ctx.fill();
+                        });
+                        
+                        // Maintain same connection style as dense layers
+                        flattenReached = true;
+                    }
+                    
+                    prevLayerPositions = currentLayerPositions;
+                    xOffset += 100;
+                }
+
+                // Draw output layer
+                if (prevLayerPositions.length > 0) {
+                    ctx.fillStyle = "magenta";
+                    const outputUnits = 5;
+                    const mid = Math.floor((outputUnits - 1) / 2);
+                    
+                    for (let i = 0; i < outputUnits; i++) {
+                        const y = startY + (i - mid) * 30;
+                        ctx.beginPath();
+                        ctx.arc(xOffset, y, 10, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        // Connect to all previous units
+                        prevLayerPositions.forEach(prevPos => {
+                            ctx.beginPath();
+                            ctx.moveTo(prevPos.x, prevPos.y);
+                            ctx.lineTo(xOffset, y);
+                            ctx.stroke();
+                        });
+                    }
+                }
+            }
+        
+            getConnectedBlocks() {
+                return this.blocks
+                    .filter(b => b.connected || b.text === 'Starting Block')
+                    .sort((a, b) => (a.x - b.x) || (a.y - b.y));
+            }
+        }
+        new BlockyAI();
+    </script>
+</body>
+</html>
