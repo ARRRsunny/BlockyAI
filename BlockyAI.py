@@ -4,18 +4,10 @@ from tkinter import messagebox
 import os
 import subprocess
 import platform
+from typing import List, Tuple, Dict, Optional
 
 class Block:
-    def __init__(self, canvas, x, y, text, app, input_field=False, resize_field=False, deletable=True):
-        self.canvas = canvas
-        self.text = text
-        self.app = app
-        self.input_field = input_field
-        self.resize_field = resize_field
-        self.deletable = deletable
-        self.connected = False
-
-        self.colors = {
+    COLORS = {
             "Starting Block": ("lightgreen", "lightgreen"),
             "Dense Layer": ("sky blue", "lightblue"),
             "Conv2D Layer": ("orange", "lightsalmon"),
@@ -28,7 +20,16 @@ class Block:
             "BatchNormalization Layer":("ivory2","ivory3"),
             "Dropout":("thistle1","thistle2")
         }
-
+    
+    def __init__(self, canvas, x, y, text, app, input_field=False, resize_field=False, deletable=True):
+        self.canvas = canvas
+        self.text = text
+        self.app = app
+        self.input_field = input_field
+        self.resize_field = resize_field
+        self.deletable = deletable
+        self.connected = False
+        self.colors = self.COLORS
         self.id = canvas.create_rectangle(x, y, x + 100, y + 50, fill=self.colors[text][1], outline="")
         self.text_id = canvas.create_text(x + 50, y + 15, text=text, fill="black", font=("Arial", 10, "bold"))
         self.entry = tk.Entry(canvas, bg="white") if input_field or resize_field else None
@@ -270,8 +271,11 @@ class BlockApp:
         for idx, block in enumerate(sorted(connected_blocks, key=lambda b: self.canvas.coords(b.id)[1])):
             text = self.canvas.itemcget(block.text_id, "text")
             color = block.colors.get(text, "black")[0]
-            units = int(block.get_value() or 7)
-
+            max_visible_units = 8
+            units = min(int(block.get_value() or 7), max_visible_units)
+            if units > max_visible_units:
+                self.graph_canvas.create_text(x_offset, y_offset, 
+                    text=f"{units} units", fill="black")
             mid = round((units/2)-0.5)
             current_layer_positions = []
 
@@ -336,7 +340,13 @@ class BlockApp:
         code = self.generate_code()
         self.code_text.delete("1.0", tk.END)
         self.code_text.insert(tk.END, code)
-
+        
+    def get_sanitized_input(block, default: float) -> float:
+        try:
+            return float(block.get_value() or default)
+        except ValueError:
+            return default
+        
     def generate_code(self):
         dataset_name = self.dataset_var.get()
         input_shape = "(28, 28, 1)"
@@ -404,8 +414,10 @@ class BlockApp:
                 elif text == "Activation":
                     code += "        Activation('relu'),\n"
                 elif text == "Resizing Layer":
-                    size = block.get_value()
-                    width, height = map(str.strip, size.split(',')) if size else (64, 64)
+                    size = block.get_value() or "64,64"
+                    if ',' not in size:
+                        size = "64,64"
+                    width, height = map(str.strip, size.split(','))
                     code += f"        Resizing({width}, {height}),\n"
                 elif text == "AveragePooling2D Layer":
                     code += "        AveragePooling2D(pool_size=(2, 2)),\n"
@@ -416,8 +428,8 @@ class BlockApp:
                 elif text == "BatchNormalization Layer":
                     code += "        BatchNormalization(),\n"
                 elif text == "Dropout":
-                    Dropout = block.get_value() or 0.1
-                    code += f"        Dropout({Dropout}),\n"
+                    dropout_rate = self.get_sanitized_input(block, 0.1)
+                    code += f"        Dropout({dropout_rate}),\n"
 
         code += (
             "        Dense(num_classes, activation='softmax')\n"
@@ -441,7 +453,7 @@ class BlockApp:
             "print(f'sum: {np.sum(prediction, axis=1)}')\n"
             "print(f'predict index: {np.argmax(prediction, axis=1)}')\n"
             "print(f'Predict: {labels[np.argmax(prediction, axis=1)[N]]}')\n"
-            f"print(f'Correct: {output}')\n\n"
+            "print(f'Correct: {output}')\n\n"
             "image = x_test[N]\n"
             "if image.shape[-1] == 1:\n"
             "    image = image.reshape(image.shape)\n\n"
