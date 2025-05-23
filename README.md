@@ -74,9 +74,9 @@ Ensure the following dependencies are installed:
 
 ### Running the Application
 
-1. Run the `BlockyAI.py` file:
+1. Run the `server.py` file:
    ```bash
-   python BlockyAI.py
+   python server.py
    ```
 
 2. Start building your model:

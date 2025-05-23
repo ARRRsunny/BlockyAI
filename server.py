@@ -68,7 +68,6 @@ def run_training(job_id, code):
             '        # Display prediction\n'
             '    plt.subplots_adjust(hspace=0.3, wspace=0.3)\n'
             '    plt.tight_layout()\n'
-            '    print(true_classes[i])\n'
             f'    plt.savefig("{image_path}", bbox_inches="tight")\n'
             '    plt.close()\n'
             'except Exception as e:\n'
