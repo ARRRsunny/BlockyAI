@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BlockyAI v2.0 with Blockly</title>
+    <!-- Blockly CSS and JS -->
+    <link href="https://unpkg.com/blockly/blockly.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/blockly/blockly.min.js"></script>
+    <script src="https://unpkg.com/blockly/blockly_compressed.js"></script>
+    <script src="https://unpkg.com/blockly/python_compressed.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial;
+            background: whitesmoke;
+            height: 100vh;
+            display: grid;  
+            grid-template-columns: 800px 1fr 200px; /* Left | Middle | Right */
+            grid-template-rows: 1fr 300px; /* Same row heights */
+            gap: 20px;
+        }
+        .copy-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 5px 10px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            z-index: 100;
+        }
+        .copy-button:hover {
+            background: #45a049;
+        }
+        .code-panel {
+            position: relative;
+            padding-top: 40px; /* Make space for button */
+        }
+        .block-palette {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            overflow-y: auto;
+            height: 100%;
+            grid-row: 1;
+            grid-column: 3;
+            flex: 1; /* Take remaining space */
+        }
+        .block-node {
+            position: absolute;
+            width: 100px;
+            height: 70px;
+            border-radius: 5px;
+            display: flex;
+            padding: 8px;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-weight: bold;
+            cursor: move;
+            flex-direction: column;
+        }
+        .block-node-text {
+            margin-bottom: auto; /* Push to top */
+            padding: 4px;
+            z-index: 1; /* Keep text above input */
+        }
+        .block {
+            background: #f0f0f0;
+            padding: 10px;
+            margin: 5px;
+            border-radius: 3px;
+            cursor: move;
+            user-select: none;
+        }
+        .block-node input {
+            position: relative;
+            width: 80px;
+            bottom: auto;
+            left: auto;
+            margin-top: auto; /* Push input to bottom */
+            padding: 2px;
+            font-size: 12px;
+            z-index: 2;
+        }
+        .canvas-container {
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+            grid-column: 2; /* Middle column */
+            grid-row: 1; /* First row */
+            height: 100%;
+        }
+        .model-graph-container {
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 10px;
+            grid-column: 2; /* Middle column */
+            grid-row: 2; /* Second row */
+        }
+        body > div:first-of-type {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            
+        }
+        .canvas-area {
+            flex: 1;
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .settings-panel {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            height: 300px;
+            grid-column: 3;
+            grid-row: 2;   
+            overflow: hidden;
+            
+        }
+
+        .code-panel {
+            background: lightyellow;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            font-family: monospace;
+            white-space: pre;
+            overflow: auto;
+            grid-column: 1; /* Left column */
+            grid-row: 1; /* Span all rows */
+            height: 100%;
+        }
+        .run-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            height: 100%;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            grid-column: 1;
+            grid-row: 2;
+            overflow: hidden;
+        }
+
+        #runButton {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 8px;
+        }
+        #runButton:hover {
+            background: #45a049;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+        #runButton:disabled {
+            background: #a5d6a7;
+            cursor: not-allowed;
+            opacity: 0.8;
+            transform: none;
+            box-shadow: none;
+        }
+        .preview-container {
+            flex: 1;
+            position: relative;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px dashed #dee2e6;
+            min-height: 150px;
+            max-height: 60vh;
+        }
+        .progress-track {
+            height: 10px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        #progressContainer {
+            flex-shrink: 0;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: #495057;
+        }
+        #progressBar {
+            height: 100%;
+            width: 0%;
+            background: #4CAF50;
+            transition: width 0.3s ease;
+        }
+
+        #results {
+            flex: 1;
+            display: none;
+            flex-direction: column;
+            gap: 15px;
+            min-height: 200px;
+        }
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .training-stats {
+            display: flex;
+            gap: 15px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        .preview-placeholder {
+            position: absolute;
+            color: #6c757d;
+            top: 50%;
+            left: 50%;
+            font-size: 13px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 1;
+        }
+        #downloadLink {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            background: #2196F3;
+            color: white !important;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: background 0.2s ease;
+            font-size: 13px;
+            justify-content: center;
+            width: fit-content;
+        }
+
+        #downloadLink:hover {
+            background: #1976D2;
+        }
+        .loading-spinner {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .image-container {
+            position: relative;
+            width: 80%;
+            height: 250px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px dashed #dee2e6;
+            overflow: visible;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #demoImage {
+            width: 100%;
+            height: 1fr;
+            object-fit: fill;
+            padding: 15px;
+            display: none;
+        }
+
+        .loading-placeholder {
+            position: absolute;
+            color: #6c757d;
+            font-size: 14px;
+        }
+
+        .status-message {
+            flex-shrink: 0;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 0.9em;
+        }
+
+        .status-message.error {
+            background: #ffe3e3;
+            color: #dc3545;
+            border: 1px solid #ffc9c9;
+        }
+
+        .status-message.success {
+            background: #e6f4ea;
+            color: #2e7d32;
+            border: 1px solid #c8e6c9;
+        }
+        .model-graph {
+            height: 200px;
+            background: lightgrey;
+            margin-top: 20px;
+            border-radius: 5px;
+        }
+
+        .delete-area {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: red;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            z-index: 100;
+        }
+        
+        .model-canvas {
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* Blockly workspace styling */
+        #blocklyDiv {
+            height: 100%;
+            width: 100%;
+            position: absolute;
+        }
+        
+        .blocklyToolboxDiv {
+            background: #f5f5f5;
+            border-right: 1px solid #ddd;
+        }
+        
+        .blocklyTreeRow {
+            padding: 8px 15px;
+            margin-bottom: 5px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        
+        .blocklyTreeRow:hover {
+            background: #e9ecef;
+        }
+        
+        .blocklyTreeLabel {
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+        }
+        
+        /* Custom Blockly colors */
+        .blocklyBlockBackground[data-category="dense"] {
+            fill: skyblue;
+        }
+        .blocklyBlockBackground[data-category="conv"] {
+            fill: orange;
+        }
+        .blocklyBlockBackground[data-category="pooling"] {
+            fill: cyan;
+        }
+        .blocklyBlockBackground[data-category="utility"] {
+            fill: purple;
+        }
+        .blocklyBlockBackground[data-category="normalization"] {
+            fill: #eee;
+        }
+    </style>
+</head>
+<body>
+    <!-- Left Column -->
+    <div class="code-panel" id="codePanel">
+        <button class="copy-button">Click to Copy</button>
+        <pre class="code-content"></pre>
+    </div>
+    <div class="run-panel" id="runPanel">
+        <button id="runButton">Train Model</button>
+        <div id="progressContainer">
+            <div class="progress-header">
+                <span id="statusText">Initializing...</span>
+                <span id="progressPercent">0%</span>
+            </div>
+            <div class="progress-track">
+                <div id="progressBar"></div>
+            </div>
+        </div>
+        <div id="results">
+            <div class="results-header">
+                <a id="downloadLink">Download Trained Model</a>
+                <div class="training-stats">
+                    <!--<span>Epochs: <span id="epochCount">0</span></span>
+                    <span>Accuracy: <span id="accuracy">-</span></span>-->
+                </div>
+            </div>
+            <div class="preview-container">
+                <div class="preview-placeholder">Training preview will appear here</div>
+                <div class="loading-spinner"></div>
+                <img id="demoImage" alt="Training output preview">
+            </div>
+            <div class="status-message"></div>
+        </div>
+    </div>
+    
+    <!-- Middle Column -->
+    <div class="canvas-container" id="canvas">
+        <div id="blocklyDiv"></div>
+    </div>
+    <div class="model-graph-container" id="modelGraph">
+        <div class="model-graph"></div>
+    </div>
+
+    <!-- Right Column -->
+    <div class="block-palette" id="blockPalette">
+        <h3>Block Categories</h3>
+        <div class="block-category" style="color: skyblue;">Dense Layers</div>
+        <div class="block-category" style="color: orange;">Convolutional Layers</div>
+        <div class="block-category" style="color: cyan;">Pooling Layers</div>
+        <div class="block-category" style="color: purple;">Utility Layers</div>
+        <div class="block-category" style="color: #666;">Normalization</div>
+    </div>
+    <div class="settings-panel" id="settingsPanel"></div>
+
+    <script>    
+        class BlockyAI {
+            constructor() {
+                this.BASE_URL = `http://${window.location.hostname}:5000`;
+                this.settings = {
+                    dataset: "mnist",
+                    optimizer: "Adam",
+                    batch_size: 32,
+                    epochs: 5,
+                    learning_rate: 0.001
+                };
+                
+                // Initialize Blockly
+                this.initBlockly();
+                
+                this.initSettings();
+                this.initCopyButton();
+                this.initRunPanel();
+                this.updateCode();
+            }
+            
+            initBlockly() {
+                // Define the Blockly workspace
+                this.workspace = Blockly.inject('blocklyDiv', {
+                    toolbox: this.createToolbox(),
+                    trashcan: true,
+                    grid: {
+                        spacing: 25,
+                        length: 3,
+                        colour: '#ccc',
+                        snap: true
+                    },
+                    zoom: {
+                        controls: true,
+                        wheel: true,
+                        startScale: 0.9,
+                        maxScale: 3,
+                        minScale: 0.3,
+                        scaleSpeed: 1.2
+                    }
+                });
+                
+                // Add workspace change listener to update code
+                this.workspace.addChangeListener(() => {
+                    this.updateCode();
+                });
+            }
+            
+            createToolbox() {
+                return `
+            <xml xmlns="https://developers.google.com/blockly/xml" id="toolbox" style="display: none">
+                <category name="Dense Layers" colour="200">
+                    <block type="dense_layer">
+                        <field name="units">128</field>
+                    </block>
+                    <block type="activation_layer">
+                        <field name="activation">relu</field>
+                    </block>
+                    <block type="dropout_layer">
+                        <field name="rate">0.2</field>
+                    </block>
+                </category>
+                <category name="Convolutional" colour="30">
+                    <block type="conv2d_layer">
+                        <field name="filters">32</field>
+                    </block>
+                    <block type="resizing_layer">
+                        <field name="height">64</field>
+                        <field name="width">64</field>
+                    </block>
+                </category>
+                <category name="Pooling" colour="180">
+                    <block type="maxpooling2d_layer"></block>
+                    <block type="averagepooling2d_layer"></block>
+                </category>
+                <category name="Utility" colour="260">
+                    <block type="flatten_layer"></block>
+                    <block type="input_layer"></block>
+                </category>
+                <category name="Normalization" colour="330">
+                    <block type="batchnorm_layer"></block>
+                </category>
+            </xml>
+                `;
+            }
+
+            
+            // Define Blockly blocks
+            defineCustomBlocks() {
+
+                // Dense layer block
+                Blockly.Blocks['dense_layer'] = {
+                    init: function() {
+                        this.appendDummyInput()
+                            .appendField("Dense Layer")
+                            .appendField(new Blockly.FieldNumber(128, 1), "units");
+                        this.setPreviousStatement(true, null);
+                        this.setNextStatement(true, null);
+                        this.setColour(200);
+                        this.setTooltip("Fully connected layer");
+                    }
+                };
+
+                // Activation layer block
+                Blockly.Blocks['activation_layer'] = {
+                    init: function() {
+                        this.appendDummyInput()
+                            .appendField("Activation")
+                            .appendField(new Blockly.FieldDropdown([
+                                ["relu", "relu"],
+                                ["sigmoid", "sigmoid"],
+                                ["tanh", "tanh"],
+                                ["softmax", "softmax"]
+                            ]), "activation");
+                        this.setPreviousStatement(true, null);
+                        this.setNextStatement(true, null);
+                        this.setColour(200);
+                        this.setTooltip("Activation function layer");
+                    }
+                };
+
+                // Dropout layer block
+                Blockly.Blocks['dropout_layer'] = {
+                    init: function() {
+                        this.appendDummyInput()
+                            .appendField("Dropout")
+                            .appendField(new Blockly.FieldNumber(0.2, 0, 0.9, 0.01), "rate");
+                        this.setPreviousStatement(true, null);
+                        this.setNextStatement(true, null);
+                        this.setColour(200);
+                        this.setTooltip("Dropout regularization layer");
+                    }
+                };
+
+                // Conv2D layer block
+                Blockly.Blocks['conv2d_layer'] = {
+                    init: function() {
+                        this.appendDummyInput()
+                            .appendField("Conv2D Layer")
+                            .appendField(new Blockly.FieldNumber(32, 1), "filters");
+                        this.setPreviousStatement(true, null);
+                        this.setNextStatement(true, null);
+                        this.setColour(30);
+                        this.setTooltip("2D convolution layer");
+                    }
+                };
+
+                // Resizing layer block
+                Blockly.Blocks['resizing_layer'] = {
+                    init: function() {
+                        this.appendDummyInput()
+                            .appendField("Resize to")
+                            .appendField(new Blockly.FieldNumber(64, 1), "height")
+                            .appendField("x")
+                            .appendField(new Blockly.FieldNumber(64, 1), "width");
+                        this.setPreviousStatement(true, null);
+                        this.setNextStatement(true, null);
+                        this.setColour(30);
+                        this.setTooltip("Resizes images to specified dimensions");
+                    }
+                };
+
+                // MaxPooling layer block
+                Blockly.Blocks['maxpooling2d_layer'] = {
+                    init: function() {
+                        this.appendDummyInput()
+                            .appendField("MaxPooling2D");
+                        this.setPreviousStatement(true, null);
+                        this.setNextStatement(true, null);
+                        this.setColour(180);
+                        this.setTooltip("Max pooling operation for spatial data");
+                    }
+                };
+
+                // AveragePooling layer block
+                Blockly.Blocks['averagepooling2d_layer'] = {
+                    init: function() {
+                        this.appendDummyInput()
+                            .appendField("AveragePooling2D");
+                        this.setPreviousStatement(true, null);
+                        this.setNextStatement(true, null);
+                        this.setColour(180);
+                        this.setTooltip("Average pooling operation for spatial data");
+                    }
+                };
+
+                // Flatten layer block
+                Blockly.Blocks['flatten_layer'] = {
+                    init: function() {
+                        this.appendDummyInput()
+                            .appendField("Flatten");
+                        this.setPreviousStatement(true, null);
+                        this.setNextStatement(true, null);
+                        this.setColour(260);
+                        this.setTooltip("Flattens the input without affecting batch size");
+                    }
+                };
+
+                // Input layer block
+                Blockly.Blocks['input_layer'] = {
+                    init: function() {
+                        this.appendDummyInput()
+                            .appendField("Input Layer");
+                        this.appendStatementInput("LAYERS")
+                            .setCheck(null);
+                        this.setColour(260);
+                        this.setTooltip("Input layer (start of model) - place other layers inside this block");
+                    }
+                };
+                // Batch normalization layer block
+                Blockly.Blocks['batchnorm_layer'] = {
+                    init: function() {
+                        this.appendDummyInput()
+                            .appendField("BatchNormalization");
+                        this.setPreviousStatement(true, null);
+                        this.setNextStatement(true, null);
+                        this.setColour(330);
+                        this.setTooltip("Batch normalization layer");
+                    }
+                };
+
+                // Define generators for Python
+                python.pythonGenerator.forBlock['dense_layer'] = function(block) {
+                    const units = block.getFieldValue('units');
+                    return `        Dense(${units}, activation='relu'),\n`;
+                };
+
+                python.pythonGenerator.forBlock['activation_layer'] = function(block) {
+                    const activation = block.getFieldValue('activation');
+                    return `        Activation('${activation}'),\n`;
+                };
+
+                python.pythonGenerator.forBlock['dropout_layer'] = function(block) {
+                    const rate = block.getFieldValue('rate');
+                    return `        Dropout(${rate}),\n`;
+                };
+
+                python.pythonGenerator.forBlock['conv2d_layer'] = function(block) {
+                    const filters = block.getFieldValue('filters');
+                    return `        Conv2D(${filters}, kernel_size=(3, 3), activation='relu'),\n`;
+                };
+
+                python.pythonGenerator.forBlock['resizing_layer'] = function(block) {
+                    const height = block.getFieldValue('height');
+                    const width = block.getFieldValue('width');
+                    return `        Resizing(${height}, ${width}),\n`;
+                };
+
+                python.pythonGenerator.forBlock['maxpooling2d_layer'] = function(block) {
+                    return `        MaxPooling2D(pool_size=(2, 2)),\n`;
+                };
+
+                python.pythonGenerator.forBlock['averagepooling2d_layer'] = function(block) {
+                    return `        AveragePooling2D(pool_size=(2, 2)),\n`;
+                };
+
+                python.pythonGenerator.forBlock['flatten_layer'] = function(block) {
+                    return `        Flatten(),\n`;
+                };
+
+                python.pythonGenerator.forBlock['input_layer'] = function(block) {
+                    // Get the nested blocks
+                    const layers = python.pythonGenerator.statementToCode(block, 'LAYERS');
+                    return layers; // Return only the code from nested blocks
+                };
+                python.pythonGenerator.forBlock['batchnorm_layer'] = function(block) {
+                    return `        BatchNormalization(),\n`;
+                };
+
+            }
+            
+            initRunPanel() {
+                const runButton = document.getElementById('runButton');
+                runButton.addEventListener('click', () => this.runModel());
+            }
+            
+            showResults(modelUrl, demoImageUrl) {
+                const demoImage = document.getElementById('demoImage');
+                const placeholder = document.querySelector('.preview-placeholder');
+                const spinner = document.querySelector('.loading-spinner');
+                const statusMessage = document.querySelector('.status-message');
+                const resultsDiv = document.getElementById('results');
+                const downloadurl = document.getElementById('downloadLink');
+                // Reset states
+                demoImage.style.display = 'none';
+                placeholder.style.display = 'block';
+                spinner.style.display = 'none';
+                statusMessage.textContent = '';
+                downloadurl.href = modelUrl;
+                if (demoImageUrl) {
+                    // Show loading spinner
+                    placeholder.style.display = 'none';
+                    spinner.style.display = 'block';
+
+                    // Add cache busting and load image
+                    demoImage.onload = () => {
+                        spinner.style.display = 'none';
+                        demoImage.style.display = 'block';
+                        placeholder.style.display = 'none';
+                        demoImage.style.visibility = 'visible';
+                        resultsDiv.style.display = 'block';
+                        statusMessage.textContent = 'Preview loaded successfully';
+
+                    };
+
+                    demoImage.onerror = () => {
+                        spinner.style.display = 'none';
+                        placeholder.style.display = 'block';
+                        placeholder.textContent = 'Failed to load preview';
+                        statusMessage.textContent = 'Error loading preview image';
+                        resultsDiv.style.display = 'block';
+                        statusMessage.style.color = 'red';
+                        console.error('Image failed to load:', demoImage.src);
+
+                    };
+
+                    // Force refresh cached images
+                    demoImage.src = `${demoImageUrl}?t=${new Date().getTime()}`;
+                } else {
+                    placeholder.textContent = 'No preview generated';
+                    statusMessage.textContent = 'Preview generation failed';
+                    statusMessage.style.color = 'red';
+
+                }
+            }
+            
+            async runModel() {
+                const code = this.generateCode();
+                const runButton = document.getElementById('runButton');
+                const progressContainer = document.getElementById('progressContainer');
+                const resultsDiv = document.getElementById('results');
+                
+                runButton.disabled = true;
+                progressContainer.style.display = 'block';
+                resultsDiv.style.display = 'none';
+
+                try {
+                    const response = await fetch(`${this.BASE_URL}/run-model`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ code })
+                    });
+                    
+                    if (!response.ok) throw new Error('Failed to start training');
+                    
+                    const { job_id } = await response.json();
+                    this.pollTrainingStatus(job_id);
+
+                } catch (error) {
+                    this.updateStatus('Error: ' + error.message, true);
+                    runButton.disabled = false;
+                }
+            }
+            
+            handleCompletion(status,jobId) {
+                // Final progress update
+                this.updateProgressDisplay(status.totalEpochs, status.totalEpochs);
+                
+                // Brief delay for visual feedback
+                setTimeout(() => {
+                    document.getElementById('progressContainer').style.display = 'none';
+                    this.showResults(`${this.BASE_URL}/download-model/${jobId}`,`${this.BASE_URL}/static/${jobId}`);
+                }, 800);
+            }
+            
+            updateProgressDisplay(current, total) {
+                const progress = total > 0 
+                    ? Math.min(99, Math.round((current / total) * 100))
+                    : 0;
+                    
+                document.getElementById('progressBar').style.width = `${progress}%`;
+                document.getElementById('progressPercent').textContent = `${progress}%`;
+                document.getElementById('statusText').textContent = total > 0
+                    ? `Training - Epoch ${current} of ${total}`
+                    : 'Initializing training...';
+            }
+            
+            handleError(error) {
+                document.getElementById('runButton').disabled = false;
+                document.getElementById('statusText').textContent = error;
+                document.getElementById('statusText').style.color = 'red';
+                document.getElementById('progressBar').style.backgroundColor = '#ff4444';
+            }
+            
+            async pollTrainingStatus(jobId) {
+                let retryCount = 0;
+                const maxRetries = 3;
+                
+                const poll = async () => {
+                    try {
+                        const response = await fetch(`${this.BASE_URL}/training-status/${jobId}`);
+                        if (!response.ok) throw new Error('Status check failed');
+                        
+                        const status = await response.json();
+                        retryCount = 0; // Reset retry counter on success
+
+                        switch(status.status) {
+                            case 'completed':
+                                this.handleCompletion(status,jobId);
+                                return true;
+                                
+                            case 'error':
+                                this.handleError(status.error);
+                                return true;
+                                
+                            case 'running':
+                                this.updateProgressDisplay(
+                                    status.currentEpoch,
+                                    status.totalEpochs
+                                );
+                                return false;
+                                
+                            default:
+                                console.warn('Unknown status:', status.status);
+                                return false;
+                        }
+                    } catch (error) {
+                        if (retryCount++ >= maxRetries) {
+                            this.handleError(`Connection error: ${error.message}`);
+                            return true;
+                        }
+                        return false;
+                    }
+                };
+
+                const pollInterval = setInterval(async () => {
+                    const shouldStop = await poll();
+                    if (shouldStop) clearInterval(pollInterval);
+                }, 1500);
+            }
+            
+            updateProgress(percent, currentEpoch, totalEpochs) {
+                const progressBar = document.getElementById('progressBar');
+                const progressPercent = document.getElementById('progressPercent');
+                const statusText = document.getElementById('statusText');
+                
+                progressBar.style.width = percent + '%';
+                progressPercent.textContent = percent + '%';
+                
+                if (percent === 100) {
+                    statusText.textContent = `Finalizing training...`;
+                } else {
+                    statusText.textContent = `Training - Epoch ${currentEpoch} of ${totalEpochs}`;
+                }
+            }
+
+            updateStatus(message, isError = false) {
+                const statusText = document.getElementById('statusText');
+                statusText.textContent = message;
+                if (isError) {
+                    statusText.style.color = 'red';
+                }
+            }
+
+            initSettings() {
+                const settingsPanel = document.getElementById('settingsPanel');
+                
+                const createSetting = (label, type, options, key) => {
+                    const div = document.createElement('div');
+                    div.innerHTML = `
+                        <label>${label}</label>
+                        ${type === 'select' ? 
+                            `<select class="setting-control" data-key="${key}">
+                                ${options.map(o => `<option>${o}</option>`).join('')}
+                            </select>` :
+                            `<input type="${type}" class="setting-control" data-key="${key}" value="${this.settings[key]}">`
+                        }
+                    `;
+                    div.querySelector('.setting-control').addEventListener('change', (e) => {
+                        this.settings[key] = type === 'number' ? 
+                            parseFloat(e.target.value) : e.target.value;
+                        this.updateCode();
+                    });
+                    settingsPanel.appendChild(div);
+                };
+
+                createSetting("Dataset:", 'select', ["mnist", "fashion_mnist","cifar10"], 'dataset');
+                createSetting("Optimizer:", 'select', ["Adam", "SGD"], 'optimizer');
+                createSetting("Batch Size:", 'number', null, 'batch_size');
+                createSetting("Epochs:", 'number', null, 'epochs');
+                createSetting("Learning Rate:", 'number', null, 'learning_rate');
+            }
+            
+            initCopyButton() {
+                const copyButton = document.querySelector('.copy-button');
+                copyButton.addEventListener('click', () => {
+                    const code = document.querySelector('.code-content').textContent;
+                    navigator.clipboard.writeText(code).then(() => {
+                        copyButton.textContent = "Copied!";
+                        setTimeout(() => {
+                            copyButton.textContent = "Click to Copy";
+                        }, 2000);
+                    }).catch(err => {
+                        console.error('Copy failed:', err);
+                    });
+                });
+            }
+            
+            updateCode() {
+                const code = this.generateCode();
+                document.querySelector('.code-content').textContent = code;
+            }
+
+            sanitizeInput(value, defaultVal, isFloat = false) {
+                if (!value) return defaultVal;
+                const numeric = isFloat ? parseFloat(value) : parseInt(value);
+                return isNaN(numeric) ? defaultVal : numeric;
+            }
+
+            generateCode() {
+                // Get generated code from Blockly
+                Blockly.Python.INFINITE_LOOP_TRAP = null;
+                let layersCode = Blockly.Python.workspaceToCode(this.workspace);
+
+                const topBlocks = this.workspace.getTopBlocks();
+                for (const block of topBlocks) {
+                    if (block.type === 'input_layer') {
+                        layersCode = Blockly.Python.statementToCode(block, 'LAYERS');
+                        break;
+                    }
+                }
+                // If no layers are defined, provide default layers
+                if (!layersCode.trim()) {
+                    return "Please add an Input Layer block and place other layers inside it";
+                }
+                
+                const datasetConfig = {
+                    fashion_mnist: {
+                        shape: '(28, 28, 1)',
+                        labels: ["T-shirt/top", "Trouser", "Pullover", "Dress", "Coat", 
+                                "Sandal", "Shirt", "Sneaker", "Bag", "Ankle boot"],
+                        output: '{labels[y_test[N]]}'
+                    },
+                    mnist: {
+                        shape: '(28, 28, 1)',
+                        labels: "list(map(str, range(10)))",
+                        output: '{labels[y_test[N]]}'
+                    },
+                    cifar10: {
+                        shape: '(32, 32, 3)',
+                        labels: ["airplane", "automobile", "bird", "cat", "deer", 
+                                "dog", "frog", "horse", "ship", "truck"],
+                        output: '{labels[y_test[N][0]]}'
+                    }
+                }[this.settings.dataset];
+
+                let code = `# BlockyAI v2.0 with Blockly
+# Created by @ARRRsunny
+# https://github.com/ARRRsunny/BlockyAI
+
+import tensorflow as tf
+from tensorflow.keras.layers import *
+from tensorflow.keras.optimizers import *
+from tensorflow.keras.callbacks import *
+import numpy as np
+import cv2
+
+tf.keras.backend.clear_session()
+(x_train, y_train), (x_test, y_test) = tf.keras.datasets.${this.settings.dataset}.load_data()
+
+x_train, x_test = x_train / 255.0, x_test / 255.0
+if len(x_train.shape) == 3:
+    x_train = x_train[..., tf.newaxis]
+    x_test = x_test[..., tf.newaxis]
+
+labels = ${JSON.stringify(datasetConfig.labels)}
+num_classes = len(labels)
+
+train_one_hot = tf.keras.utils.to_categorical(y_train, num_classes)
+test_one_hot = tf.keras.utils.to_categorical(y_test, num_classes)
+
+def build_model(num_classes):
+    model = tf.keras.Sequential([
+        tf.keras.Input(shape=${datasetConfig.shape}),\n`;
+
+                code += layersCode;
+                
+                code += `        Dense(num_classes, activation='softmax')
+    ])
+    return model
+
+model = build_model(num_classes)
+model.compile(
+    optimizer=${this.settings.optimizer}(learning_rate=${this.settings.learning_rate}),
+    loss="categorical_crossentropy",
+    metrics=["accuracy"]
+)
+
+callbacks = [EarlyStopping(monitor='accuracy', patience=3)]
+model.fit(
+    x_train, train_one_hot,
+    batch_size=${this.settings.batch_size},
+    epochs=${this.settings.epochs},
+    callbacks=callbacks,
+    validation_data=(x_test, test_one_hot)
+)
+
+# Prediction and visualization
+prediction = model.predict(x_test)
+N = np.random.randint(0, high=len(x_test), dtype=int)
+
+print(f'sum: {np.sum(prediction, axis=1)}')
+print(f'predict index: {np.argmax(prediction, axis=1)}')
+print(f'Predict: {labels[np.argmax(prediction, axis=1)[N]]}')
+print(f'Correct: ${datasetConfig.output}')
+
+image = x_test[N]
+if image.shape[-1] == 1:
+    image = image.reshape(image.shape)
+
+#cv2.namedWindow('img', cv2.WINDOW_NORMAL)
+#cv2.resizeWindow('img', 300, 300)
+#cv2.imshow('img', image)
+#cv2.waitKey(0)
+#cv2.destroyAllWindows()`;
+
+                return code;
+            }
+        }
+        
+        // Initialize BlockyAI and define custom blocks
+        document.addEventListener('DOMContentLoaded', () => {
+            const blockyAI = new BlockyAI();
+            blockyAI.defineCustomBlocks();
+            console.log('loaded');
+        });
+    </script>
+</body>
+</html>
