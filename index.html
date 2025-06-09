@@ -42,61 +42,15 @@
             position: relative;
             padding-top: 40px; /* Make space for button */
         }
-        .block-palette {
-            background: white;
-            padding: 10px;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            overflow-y: auto;
-            height: 100%;
-            grid-row: 1;
-            grid-column: 3;
-            flex: 1; /* Take remaining space */
-        }
-        .block-node {
-            position: absolute;
-            width: 100px;
-            height: 70px;
-            border-radius: 5px;
-            display: flex;
-            padding: 8px;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            font-weight: bold;
-            cursor: move;
-            flex-direction: column;
-        }
-        .block-node-text {
-            margin-bottom: auto; /* Push to top */
-            padding: 4px;
-            z-index: 1; /* Keep text above input */
-        }
-        .block {
-            background: #f0f0f0;
-            padding: 10px;
-            margin: 5px;
-            border-radius: 3px;
-            cursor: move;
-            user-select: none;
-        }
-        .block-node input {
-            position: relative;
-            width: 80px;
-            bottom: auto;
-            left: auto;
-            margin-top: auto; /* Push input to bottom */
-            padding: 2px;
-            font-size: 12px;
-            z-index: 2;
-        }
+
+        
         .canvas-container {
             background: white;
             border-radius: 5px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             position: relative;
             overflow: hidden;
-            grid-column: 2; /* Middle column */
+            grid-column: 2 / -1; /* Middle column */
             grid-row: 1; /* First row */
             height: 100%;
         }
@@ -329,10 +283,16 @@
             border: 1px solid #c8e6c9;
         }
         .model-graph {
-            height: 200px;
-            background: lightgrey;
-            margin-top: 20px;
+            height: 250px;
+            background: white;
+            margin-top: 5px;
             border-radius: 5px;
+            padding: 5px;
+        }
+
+        .model-canvas {
+            width: 100%;
+            height: 100%;
         }
 
         .delete-area {
@@ -346,10 +306,6 @@
             z-index: 100;
         }
         
-        .model-canvas {
-            width: 100%;
-            height: 100%;
-        }
         
         /* Blockly workspace styling */
         #blocklyDiv {
@@ -439,15 +395,6 @@
         <div class="model-graph"></div>
     </div>
 
-    <!-- Right Column -->
-    <div class="block-palette" id="blockPalette">
-        <h3>Block Categories</h3>
-        <div class="block-category" style="color: skyblue;">Dense Layers</div>
-        <div class="block-category" style="color: orange;">Convolutional Layers</div>
-        <div class="block-category" style="color: cyan;">Pooling Layers</div>
-        <div class="block-category" style="color: purple;">Utility Layers</div>
-        <div class="block-category" style="color: #666;">Normalization</div>
-    </div>
     <div class="settings-panel" id="settingsPanel"></div>
 
     <script>    
@@ -495,6 +442,7 @@
                 // Add workspace change listener to update code
                 this.workspace.addChangeListener(() => {
                     this.updateCode();
+                    this.updateModelGraph();
                 });
             }
             
@@ -503,7 +451,7 @@
             <xml xmlns="https://developers.google.com/blockly/xml" id="toolbox" style="display: none">
                 <category name="Dense Layers" colour="200">
                     <block type="dense_layer">
-                        <field name="units">128</field>
+                        <field name="units">32</field>
                     </block>
                     <block type="activation_layer">
                         <field name="activation">relu</field>
@@ -526,8 +474,8 @@
                     <block type="averagepooling2d_layer"></block>
                 </category>
                 <category name="Utility" colour="260">
-                    <block type="flatten_layer"></block>
                     <block type="input_layer"></block>
+                    <block type="flatten_layer"></block>
                 </category>
                 <category name="Normalization" colour="330">
                     <block type="batchnorm_layer"></block>
@@ -545,7 +493,7 @@
                     init: function() {
                         this.appendDummyInput()
                             .appendField("Dense Layer")
-                            .appendField(new Blockly.FieldNumber(128, 1), "units");
+                            .appendField(new Blockly.FieldNumber(32, 1), "units");
                         this.setPreviousStatement(true, null);
                         this.setNextStatement(true, null);
                         this.setColour(200);
@@ -1067,6 +1015,231 @@ if image.shape[-1] == 1:
 #cv2.destroyAllWindows()`;
 
                 return code;
+            }
+            updateModelGraph() {
+                const modelGraph = document.querySelector('.model-graph');
+                modelGraph.innerHTML = '';
+                const canvas = document.createElement('canvas');
+                canvas.className = 'model-canvas';
+                modelGraph.appendChild(canvas);
+                
+                const ctx = canvas.getContext('2d');
+                const width = modelGraph.offsetWidth;
+                const height = modelGraph.offsetHeight;
+                canvas.width = width;
+                canvas.height = height;
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, width, height);
+                
+                // Get all blocks in order
+                const blocks = this.getOrderedBlocks();
+                if (blocks.length === 0) return;
+                
+                // Drawing parameters
+                const startX = 50;
+                const startY = height / 2;
+                const spacing = 100;
+                let xPos = startX;
+                let prevLayerNodes = [];
+                let flattenReached = false;
+                
+                // Draw input layer
+                ctx.fillStyle = "lightgreen";
+                ctx.fillRect(xPos - 30, startY - 30, 60, 60);
+                ctx.fillStyle = "#000";
+                ctx.textAlign = "center";
+                ctx.fillText("Input", xPos, startY + 40);
+                prevLayerNodes = [{x: xPos, y: startY}];
+                xPos += spacing;
+                
+                // Draw each layer
+                blocks.forEach(block => {
+                    const blockType = block.type.replace(/_layer$/, '');
+                    const color = this.getBlockColor(blockType);
+                    const units = this.getBlockUnits(block);
+                    const mid = Math.floor((units - 1) / 2);
+                    const currentLayerNodes = [];
+                    
+                    // Draw nodes for this layer
+                    for (let i = 0; i < units; i++) {
+                        const y = startY + (i - mid) * 30;
+                        currentLayerNodes.push({x: xPos, y});
+                        
+                        if (flattenReached || blockType === 'flatten') {
+                            // Draw dense/flatten nodes as circles
+                            ctx.fillStyle = color;
+                            ctx.beginPath();
+                            ctx.arc(xPos, y, 10, 0, Math.PI * 2);
+                            ctx.fill();
+                        } else {
+                            // Draw conv/pool nodes as rectangles
+                            ctx.fillStyle = color;
+                            ctx.fillRect(xPos - 15, y - 15, 30, 30);
+                        }
+                    }
+                    
+                    // Draw connections from previous layer
+                    if (prevLayerNodes.length > 0) {
+                        ctx.strokeStyle = "#000";
+                        ctx.lineWidth = 1;
+                        
+                        if (flattenReached) {
+                            // Dense layers: all-to-all connections
+                            currentLayerNodes.forEach(currNode => {
+                                prevLayerNodes.forEach(prevNode => {
+                                    ctx.beginPath();
+                                    ctx.moveTo(prevNode.x, prevNode.y);
+                                    ctx.lineTo(currNode.x, currNode.y);
+                                    ctx.stroke();
+                                });
+                            });
+                        } else {
+                            // Conv/pool layers: parallel connections with arrows
+                            currentLayerNodes.forEach((currNode, i) => {
+                                const prevNode = prevLayerNodes[i % prevLayerNodes.length];
+                                ctx.beginPath();
+                                ctx.moveTo(prevNode.x, prevNode.y);
+                                ctx.lineTo(currNode.x, currNode.y);
+                                
+                                // Draw arrowhead
+                                const angle = Math.atan2(currNode.y - prevNode.y, currNode.x - prevNode.x);
+                                const arrowSize = 8;
+                                ctx.lineTo(
+                                    currNode.x - arrowSize * Math.cos(angle - Math.PI/6),
+                                    currNode.y - arrowSize * Math.sin(angle - Math.PI/6)
+                                );
+                                ctx.moveTo(currNode.x, currNode.y);
+                                ctx.lineTo(
+                                    currNode.x - arrowSize * Math.cos(angle + Math.PI/6),
+                                    currNode.y - arrowSize * Math.sin(angle + Math.PI/6)
+                                );
+                                ctx.stroke();
+                            });
+                        }
+                    }
+                    
+                    if (block.text === "Flatten") {
+                        // Special handling for Flatten layer connections
+                        ctx.fillStyle = Block.COLORS["Flatten"][0];
+                        currentLayerPositions.forEach(pos => {
+                            ctx.beginPath();
+                            ctx.arc(pos.x, pos.y, 10, 0, Math.PI * 2);
+                            ctx.fill();
+                        });
+                        
+                        // Maintain same connection style as dense layers
+                        flattenReached = true;
+                    }
+                    // Draw layer label
+                    ctx.fillStyle = "#000";
+                    ctx.textAlign = "center";
+
+                    
+                    // Update state for next layer
+                    if (blockType === 'flatten') {
+                        flattenReached = true;
+                    }
+                    prevLayerNodes = currentLayerNodes;
+                    xPos += spacing;
+                });
+                
+                // Draw output layer
+                if (prevLayerNodes.length > 0) {
+                    ctx.fillStyle = "magenta";
+                    const outputUnits = 5;
+                    const mid = Math.floor((outputUnits - 1) / 2);
+                    
+                    for (let i = 0; i < outputUnits; i++) {
+                        const y = startY + (i - mid) * 30;
+                        ctx.beginPath();
+                        ctx.arc(xPos, y, 10, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        // Connect to all previous units
+                        prevLayerNodes.forEach(prevNode => {
+                            ctx.beginPath();
+                            ctx.moveTo(prevNode.x, prevNode.y);
+                            ctx.lineTo(xPos, y);
+                            ctx.stroke();
+                        });
+                    }
+                    
+                    // Draw output label
+                    ctx.fillStyle = "#000";
+                    ctx.textAlign = "center";
+                }
+            }
+
+            getOrderedBlocks() {
+                const blocks = [];
+                const topBlocks = this.workspace.getTopBlocks();
+                
+                // Find the input layer block
+                const inputBlock = topBlocks.find(block => block.type === 'input_layer');
+                if (!inputBlock) return blocks;
+                
+                // Get all blocks inside the input layer
+                const inputBlocks = Blockly.Python.statementToCode(inputBlock, 'LAYERS')
+                    .split('\n')
+                    .filter(line => line.includes('('))
+                    .map(line => {
+                        const typeMatch = line.match(/^\s*(\w+)\(/);
+                        return typeMatch ? typeMatch[1].toLowerCase() + '_layer' : null;
+                    })
+                    .filter(Boolean);
+                
+                // Get the actual block objects in order
+                let currentBlock = inputBlock.getInputTargetBlock('LAYERS');
+                while (currentBlock) {
+                    blocks.push(currentBlock);
+                    currentBlock = currentBlock.getNextBlock();
+                }
+                
+                return blocks;
+            }
+
+            getBlockColor(blockType) {
+                const colors = {
+                    'dense': 'skyblue',
+                    'activation': 'lightblue',
+                    'dropout': 'lightgrey',
+                    'conv2d': 'orange',
+                    'resizing': 'darkorange',
+                    'maxpooling2d': 'cyan',
+                    'averagepooling2d': 'lightcyan',
+                    'flatten': 'purple',
+                    'batchnorm': '#eee'
+                };
+                return colors[blockType] || 'grey';
+            }
+
+            getBlockLabel(blockType) {
+                const labels = {
+                    'dense': 'Dense',
+                    'activation': 'Activation',
+                    'dropout': 'Dropout',
+                    'conv2d': 'Conv2D',
+                    'resizing': 'Resize',
+                    'maxpooling2d': 'MaxPool',
+                    'averagepooling2d': 'AvgPool',
+                    'flatten': 'Flatten',
+                    'batchnorm': 'BatchNorm'
+                };
+                return labels[blockType] || blockType;
+            }
+
+            getBlockUnits(block) {
+                switch(block.type) {
+                    case 'dense_layer':
+                        return Math.min(8, parseInt(block.getFieldValue('units'))) || 8;
+                    case 'conv2d_layer':
+                        return Math.min(8, parseInt(block.getFieldValue('filters'))) || 8;
+                    case 'resizing_layer':
+                        return 8; // Fixed size for resizing
+                    default:
+                        return 8; // Default number of units to display
+                }
             }
         }
         

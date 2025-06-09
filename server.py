@@ -184,7 +184,7 @@ def serve_static(job_id):
 @app.route("/", methods=["GET"])
 def serve_html():
     try:
-        return send_file("BlockyAI_web.html")
+        return send_file("index.html")
     except Exception as e:
         logging.error("Error serving HTML: %s", e)
         abort(500, "Internal server error")
