@@ -56,7 +56,6 @@ Ensure the following dependencies are installed:
 - **Python 3.10 or above**
 - **TensorFlow 2.17 or higher**
 - **OpenCV 4.10 or higher**
-- **Tkinter** (included with most Python installations)
 - **Numpy 1.26 or higher**
 
 ### Installation
@@ -69,9 +68,14 @@ Ensure the following dependencies are installed:
 
 2. Install the required Python dependencies:
    ```bash
-   pip install tensorflow numpy opencv-python
+   pip install -r requirements.txt
    ```
 
+3. Adjust to destination IP and Port(Optional):
+   ```bash
+   Address = '0.0.0.0'
+   Port = 5000
+   ```
 ### Running the Application
 
 1. Run the `server.py` file:

@@ -489,7 +489,19 @@
             
             // Define Blockly blocks
             defineCustomBlocks() {
-
+                // Define tooltips for each layer
+                const cnn_tooltips = {
+                    "Dense": "Fully Connected Neural Layer\nOperation: y = σ(W·x + b)\n• Parameters: units (output dimensionality), activation\n• Weight Matrix: W ∈ ℝⁿ⁺¹ˣᵏ (learnable parameters)\n• Common Activations: ReLU (hidden), Softmax/Sigmoid (output)\n• Use: Final classification/regression layers\n• Note: Computationally expensive for high-dim inputs",
+                    "Conv2D": "2D Convolutional Layer\nOperation: Feature Map = σ(Input ★ Kernel + Bias)\n• Parameters: filters (channels), kernel_size (e.g. 3×3), strides, padding\n• Kernel: Learnable feature detectors (filters × in_ch × kₕ × kᵥ)\n• Padding: 'same' (preserve dims) or 'valid' (no padding)\n• Use: Core feature extraction from spatial data\n• Note: Captures translation-invariant patterns",
+                    "Flatten": "Tensor Flattening Operation\nOperation: (N, H, W, C) → (N, H×W×C)\n• Purpose: Transition from conv layers to dense layers\n• No learnable parameters\n• Critical for image classification pipelines\n• Warning: Destroys spatial relationships in data",                    
+                    "Activation": "Element-wise Nonlinearity\n• ReLU: max(0,x) (sparsity, avoid vanishing grad)\n• Sigmoid: 1/(1+e⁻ˣ) (binary output [0,1])\n• Softmax: eˣᵢ/Σeˣⱼ (multi-class probability dist)\n• Tanh: (eˣ-e⁻ˣ)/(eˣ+e⁻ˣ) [-1,1]\n• LeakyReLU: max(αx,x) (fixes 'dying ReLU')",
+                    "Resizing": "Spatial Transformation Layer\n• Methods: Bicubic (high quality), Bilinear (balanced), Nearest (fast)\n• Parameters: target_height, target_width\n• Use: Input standardization, data augmentation\n• Critical for: Transfer learning (model input alignment)\n• GPU-accelerated in modern frameworks",
+                    "Dropout": "Stochastic Regularization\nOperation: xᵢ ← 0 with probability p\n• Parameters: rate (drop probability 0-1)\n• Active only during training\n• Effect: Prevents co-adaptation of features\n• Common rates: 0.2-0.5 (higher for larger layers)\n• Scale adjustment: x/(1-rate) at training time",
+                    "BatchNormalization": "Distribution Stabilization\nOperation: x̂ = (x-μ)/√(σ²+ε), y = γx̂ + β\n• Parameters: axis (channel-wise for images)\n• Learns: γ (scale), β (shift)\n• Benefits: Accelerates convergence, reduces sensitivity to initialization, mild regularization\n• Tracking: Running mean/variance during inference",
+                    "AveragePooling2D": "Spatial Downsampling\nOperation: Output = 1/(kₕkᵥ) Σ window\n• Parameters: pool_size (e.g. 2×2), strides\n• Use: Smooth dimensionality reduction (anti-aliasing)\n• Preserves background information\n• Common in: Final layers before classification",
+                    "MaxPooling2D": "Feature Downsampling\nOperation: Output = max(window)\n• Parameters: pool_size, strides, padding\n• Use: Preserves dominant features, spatial invariance\n• Benefit: Reduces computational load\n• Preferred for: Texture/edge detection networks\n• Note: Discards precise spatial information",
+                    "Output": "Task-Specific Projection\n• Classification: Softmax + Categorical Cross-Entropy\n• Binary: Sigmoid + Binary CE\n• Regression: Linear + Mean Squared Error\n• Object Detection: Sigmoid (per-box) + Focal Loss\n• Must match: Loss function and label encoding\n• Critical: Output dim = number of classes (for classification)"
+                };
                 // Dense layer block
                 Blockly.Blocks['dense_layer'] = {
                     init: function() {
@@ -499,7 +511,7 @@
                         this.setPreviousStatement(true, null);
                         this.setNextStatement(true, null);
                         this.setColour(200);
-                        this.setTooltip("Fully connected layer");
+                        this.setTooltip(cnn_tooltips["Dense"]);
                     }
                 };
 
@@ -517,7 +529,7 @@
                         this.setPreviousStatement(true, null);
                         this.setNextStatement(true, null);
                         this.setColour(200);
-                        this.setTooltip("Activation function layer");
+                        this.setTooltip(cnn_tooltips["Activation"]);
                     }
                 };
 
@@ -530,7 +542,7 @@
                         this.setPreviousStatement(true, null);
                         this.setNextStatement(true, null);
                         this.setColour(200);
-                        this.setTooltip("Dropout regularization layer");
+                        this.setTooltip(cnn_tooltips["Dropout"]);
                     }
                 };
 
@@ -543,7 +555,7 @@
                         this.setPreviousStatement(true, null);
                         this.setNextStatement(true, null);
                         this.setColour(30);
-                        this.setTooltip("2D convolution layer");
+                        this.setTooltip(cnn_tooltips["Conv2D"]);
                     }
                 };
 
@@ -558,7 +570,7 @@
                         this.setPreviousStatement(true, null);
                         this.setNextStatement(true, null);
                         this.setColour(30);
-                        this.setTooltip("Resizes images to specified dimensions");
+                        this.setTooltip(cnn_tooltips["Resizing"]);
                     }
                 };
 
@@ -570,7 +582,7 @@
                         this.setPreviousStatement(true, null);
                         this.setNextStatement(true, null);
                         this.setColour(180);
-                        this.setTooltip("Max pooling operation for spatial data");
+                        this.setTooltip(cnn_tooltips["MaxPooling2D"]);
                     }
                 };
 
@@ -582,7 +594,7 @@
                         this.setPreviousStatement(true, null);
                         this.setNextStatement(true, null);
                         this.setColour(180);
-                        this.setTooltip("Average pooling operation for spatial data");
+                        this.setTooltip(cnn_tooltips["AveragePooling2D"]);
                     }
                 };
 
@@ -594,7 +606,7 @@
                         this.setPreviousStatement(true, null);
                         this.setNextStatement(true, null);
                         this.setColour(260);
-                        this.setTooltip("Flattens the input without affecting batch size");
+                        this.setTooltip(cnn_tooltips["Flatten"]);
                     }
                 };
 
@@ -609,6 +621,7 @@
                         this.setTooltip("Input layer (start of model) - place other layers inside this block");
                     }
                 };
+
                 // Batch normalization layer block
                 Blockly.Blocks['batchnorm_layer'] = {
                     init: function() {
@@ -617,47 +630,47 @@
                         this.setPreviousStatement(true, null);
                         this.setNextStatement(true, null);
                         this.setColour(330);
-                        this.setTooltip("Batch normalization layer");
+                        this.setTooltip(cnn_tooltips["BatchNormalization"]);
                     }
                 };
 
                 // Define generators for Python
                 python.pythonGenerator.forBlock['dense_layer'] = function(block) {
                     const units = block.getFieldValue('units');
-                    return `        Dense(${units}, activation='relu'),\n`;
+                    return `      Dense(${units}, activation='relu'),\n`;
                 };
 
                 python.pythonGenerator.forBlock['activation_layer'] = function(block) {
                     const activation = block.getFieldValue('activation');
-                    return `        Activation('${activation}'),\n`;
+                    return `      Activation('${activation}'),\n`;
                 };
 
                 python.pythonGenerator.forBlock['dropout_layer'] = function(block) {
                     const rate = block.getFieldValue('rate');
-                    return `        Dropout(${rate}),\n`;
+                    return `      Dropout(${rate}),\n`;
                 };
 
                 python.pythonGenerator.forBlock['conv2d_layer'] = function(block) {
                     const filters = block.getFieldValue('filters');
-                    return `        Conv2D(${filters}, kernel_size=(3, 3), activation='relu'),\n`;
+                    return `      Conv2D(${filters}, kernel_size=(3, 3), activation='relu'),\n`;
                 };
 
                 python.pythonGenerator.forBlock['resizing_layer'] = function(block) {
                     const height = block.getFieldValue('height');
                     const width = block.getFieldValue('width');
-                    return `        Resizing(${height}, ${width}),\n`;
+                    return `      Resizing(${height}, ${width}),\n`;
                 };
 
                 python.pythonGenerator.forBlock['maxpooling2d_layer'] = function(block) {
-                    return `        MaxPooling2D(pool_size=(2, 2)),\n`;
+                    return `      MaxPooling2D(pool_size=(2, 2)),\n`;
                 };
 
                 python.pythonGenerator.forBlock['averagepooling2d_layer'] = function(block) {
-                    return `        AveragePooling2D(pool_size=(2, 2)),\n`;
+                    return `      AveragePooling2D(pool_size=(2, 2)),\n`;
                 };
 
                 python.pythonGenerator.forBlock['flatten_layer'] = function(block) {
-                    return `        Flatten(),\n`;
+                    return `      Flatten(),\n`;
                 };
 
                 python.pythonGenerator.forBlock['input_layer'] = function(block) {
@@ -666,7 +679,7 @@
                     return layers; // Return only the code from nested blocks
                 };
                 python.pythonGenerator.forBlock['batchnorm_layer'] = function(block) {
-                    return `        BatchNormalization(),\n`;
+                    return `      BatchNormalization(),\n`;
                 };
 
             }
