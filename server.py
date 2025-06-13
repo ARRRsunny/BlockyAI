@@ -6,6 +6,10 @@ from flask import Flask, jsonify, request, send_file,   abort
 from flask_cors import CORS
 from collections import defaultdict
 import logging
+
+Address = '0.0.0.0'
+Port = 5000
+
 app = Flask(__name__)
 CORS(app)
 app.config['UPLOAD_FOLDER'] = 'saved_models'
@@ -190,4 +194,4 @@ def serve_html():
         abort(500, "Internal server error")
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, threaded=True)
+    app.run(host=Address, port=Port, threaded=True)
