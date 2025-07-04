@@ -6,7 +6,8 @@ from flask import Flask, jsonify, request, send_file,   abort
 from flask_cors import CORS
 from collections import defaultdict
 import logging
-
+import re
+from PIL import Image
 Address = '0.0.0.0'
 Port = 5000
 
@@ -15,7 +16,7 @@ CORS(app)
 app.config['UPLOAD_FOLDER'] = 'saved_models'
 app.config['PHOTO_FOLDER'] = 'photo'
 app.config['STATIC_FOLDER'] = 'static'
-app.config['photo_path'] = 'photo/cap.jpg'
+
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['STATIC_FOLDER'], exist_ok=True)
 os.makedirs(app.config['PHOTO_FOLDER'], exist_ok=True)
@@ -172,6 +173,10 @@ def get_status(job_id):
     
     return jsonify(response)
 
+@app.route('/run-trained-model/<job_id>', methods=['GET'])
+def run_trained_model():
+    pass
+
 @app.route('/download-model/<job_id>')
 def download_model(job_id):
     job = jobs.get(job_id)
@@ -188,28 +193,47 @@ def serve_static(job_id):
     
     return send_file(job['image_path'], mimetype='image/png')
 
-@app.route('/upload_photo', methods=['POST'])
-def upload_photo():
+@app.route('/upload_photo/<job_id>', methods=['POST'])
+def upload_photo(job_id):
     try:
+        if not re.match(r'^[a-zA-Z0-9_-]+$', job_id):
+            return jsonify({"error": "Invalid job ID format"}), 400
+
         if 'photo' not in request.files:
-            return jsonify({"error": "No photo file provided."}), 400
+            return jsonify({"error": "No photo file provided"}), 400
 
         file = request.files['photo']
+        
         if file.filename == '':
-            return jsonify({"error": "No selected file."}), 400
+            return jsonify({"error": "No selected file"}), 400
 
-        file.save(app.config['photo_path'])
-        try:
-            print('saved')
-        except Exception as e:
-            logging.error(f"Error YOLO cropping: {e}")
-            
-        return jsonify({"message": "Photo uploaded successfully and replaced cap.jpg."}), 200
+        if file.content_type not in ['image/jpeg', 'image/jpg']:
+            return jsonify({"error": "Only JPG/JPEG images allowed"}), 400
+
+
+        header = file.stream.read(2)
+        file.stream.seek(0)  # Reset file pointer
+        if header != b'\xff\xd8':  # JPEG magic number
+            return jsonify({"error": "Invalid JPEG file"}), 400
+
+
+        photo_dir = app.config['PHOTO_FOLDER']
+        
+
+        filename = f'cap_{job_id}.jpg'
+        path = os.path.join(photo_dir, filename)
+        
+
+        file.save(path)
+        logging.info(f"Photo saved successfully: {filename}")
+        
+        return jsonify({
+            "message": f"Photo uploaded successfully as {filename}"
+        }), 200
 
     except Exception as e:
-        logging.error(f"Error uploading photo: {e}")
-        return jsonify({"error": str(e)}), 500
-
+        logging.error(f"Error uploading photo: {str(e)}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
 
 @app.route("/", methods=["GET"])
 def serve_html():
@@ -219,5 +243,12 @@ def serve_html():
         logging.error("Error serving HTML: %s", e)
         abort(500, "Internal server error")
 
+@app.route("/test", methods=["GET"])
+def serve_test_html():
+    try:
+        return send_file("testpanel.html")
+    except Exception as e:
+        logging.error("Error serving HTML: %s", e)
+        abort(500, "Internal server error")
 if __name__ == '__main__':
     app.run(host=Address, port=Port, threaded=True)
