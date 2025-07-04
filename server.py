@@ -13,10 +13,13 @@ Port = 5000
 app = Flask(__name__)
 CORS(app)
 app.config['UPLOAD_FOLDER'] = 'saved_models'
+app.config['PHOTO_FOLDER'] = 'photo'
 app.config['STATIC_FOLDER'] = 'static'
+app.config['photo_path'] = 'photo/cap.jpg'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-# After creating the folders
 os.makedirs(app.config['STATIC_FOLDER'], exist_ok=True)
+os.makedirs(app.config['PHOTO_FOLDER'], exist_ok=True)
+
 if not os.access(app.config['STATIC_FOLDER'], os.W_OK):
     raise PermissionError(f"Cannot write to static folder: {app.config['STATIC_FOLDER']}")
 # Store training states per job ID
@@ -184,6 +187,29 @@ def serve_static(job_id):
         return jsonify({'error': 'Image not available'}), 404
     
     return send_file(job['image_path'], mimetype='image/png')
+
+@app.route('/upload_photo', methods=['POST'])
+def upload_photo():
+    try:
+        if 'photo' not in request.files:
+            return jsonify({"error": "No photo file provided."}), 400
+
+        file = request.files['photo']
+        if file.filename == '':
+            return jsonify({"error": "No selected file."}), 400
+
+        file.save(app.config['photo_path'])
+        try:
+            print('saved')
+        except Exception as e:
+            logging.error(f"Error YOLO cropping: {e}")
+            
+        return jsonify({"message": "Photo uploaded successfully and replaced cap.jpg."}), 200
+
+    except Exception as e:
+        logging.error(f"Error uploading photo: {e}")
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route("/", methods=["GET"])
 def serve_html():
