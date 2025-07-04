@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Model Tester</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            width: 100%;
+            max-width: 650px;
+            border-radius: 16px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.25);
+            padding: 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .container::before {
+            content: '';
+            position: absolute;
+            top: -50px;
+            right: -50px;
+            width: 200px;
+            height: 200px;
+            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            opacity: 0.1;
+        }
+        
+        .container::after {
+            content: '';
+            position: absolute;
+            bottom: -70px;
+            left: -70px;
+            width: 250px;
+            height: 250px;
+            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            opacity: 0.1;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 32px;
+            position: relative;
+            z-index: 2;
+        }
+        
+        h1 i {
+            margin-right: 12px;
+            color: #667eea;
+        }
+        
+        .subtitle {
+            color: #7f8c8d;
+            margin-bottom: 25px;
+            font-size: 17px;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .uuid-container {
+            background-color: #f8f9ff;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            position: relative;
+            z-index: 2;
+            text-align: left;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+        
+        .uuid-container label {
+            display: block;
+            color: #4a6cf7;
+            font-weight: 600;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .uuid-input-container {
+            display: flex;
+            gap: 10px;
+        }
+        
+        #uuid-input {
+            flex: 1;
+            padding: 14px 18px;
+            border: 2px solid #e0e7ff;
+            border-radius: 10px;
+            font-size: 16px;
+            color: #2c3e50;
+            transition: all 0.3s;
+        }
+        
+        #uuid-input:focus {
+            outline: none;
+            border-color: #4a6cf7;
+            box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.2);
+        }
+        
+        .uuid-input-container button {
+            background: #4a6cf7;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 0 22px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .uuid-input-container button:hover {
+            background: #3a5af5;
+            transform: translateY(-2px);
+        }
+        
+        .upload-container {
+            background-color: #f8f9ff;
+            border: 2px dashed #4a6cf7;
+            border-radius: 12px;
+            padding: 30px 20px;
+            margin-bottom: 25px;
+            transition: all 0.3s;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .upload-container.active {
+            background-color: rgba(74, 108, 247, 0.05);
+            border-color: #10b981;
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            color: #4a6cf7;
+            margin-bottom: 15px;
+        }
+        
+        .upload-text {
+            font-size: 16px;
+            color: #34495e;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            background-color: #4a6cf7;
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+            margin: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn:hover {
+            background-color: #3a5af5;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(74, 108, 247, 0.3);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn-camera {
+            background-color: #10b981;
+        }
+        
+        .btn-camera:hover {
+            background-color: #0da271;
+            box-shadow: 0 5px 15px rgba(16, 185, 129, 0.3);
+        }
+        
+        .btn-submit {
+            background-color: #8b5cf6;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .btn-submit:hover {
+            background-color: #7c4df5;
+            box-shadow: 0 5px 15px rgba(139, 92, 246, 0.3);
+        }
+        
+        .btn-reset {
+            background-color: #ef4444;
+        }
+        
+        .btn-reset:hover {
+            background-color: #dc2626;
+            box-shadow: 0 5px 15px rgba(239, 68, 68, 0.3);
+        }
+        
+        .image-preview {
+            margin: 25px 0;
+            display: none;
+            position: relative;
+            z-index: 2;
+        }
+        
+        #preview {
+            max-width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            max-height: 300px;
+            display: block;
+            margin: 0 auto;
+            border: 3px solid white;
+            outline: 1px solid #eee;
+        }
+        
+        .camera-container {
+            display: none;
+            margin: 25px 0;
+            position: relative;
+            z-index: 2;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        #camera-feed {
+            width: 100%;
+            border-radius: 10px;
+            max-height: 300px;
+            object-fit: cover;
+            display: block;
+        }
+        
+        .capture-btn {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: white;
+            color: #ef4444;
+            border: none;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 28px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.3s;
+            z-index: 3;
+        }
+        
+        .capture-btn:hover {
+            transform: translateX(-50%) scale(1.05);
+        }
+        
+        .response-container {
+            display: none;
+            margin-top: 25px;
+            padding: 25px;
+            background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+            border-radius: 12px;
+            text-align: left;
+            position: relative;
+            z-index: 2;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e0e7ff;
+        }
+        
+        .response-title {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        #response-content {
+            color: #34495e;
+            padding: 20px;
+            background-color: white;
+            border-radius: 10px;
+            min-height: 120px;
+            max-height: 250px;
+            overflow-y: auto;
+            font-family: 'Fira Code', 'Courier New', monospace;
+            font-size: 15px;
+            white-space: pre-wrap;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
+            border: 1px solid #eef2ff;
+        }
+        
+        .loading {
+            display: none;
+            margin: 25px 0;
+            text-align: center;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(74, 108, 247, 0.2);
+            border-top: 4px solid #4a6cf7;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .status {
+            color: #4a6cf7;
+            font-weight: 500;
+            font-size: 17px;
+        }
+        
+        .error {
+            color: #ef4444;
+        }
+        
+        .success {
+            color: #10b981;
+        }
+        
+        .action-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+            position: relative;
+            z-index: 2;
+        }
+        
+        #file-input {
+            display: none;
+        }
+        
+        .uuid-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .uuid-status.valid {
+            color: #10b981;
+        }
+        
+        .uuid-status.invalid {
+            color: #ef4444;
+        }
+        
+        .response-item {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            padding: 12px 15px;
+            background: white;
+            border-radius: 8px;
+            margin-top: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .class-badge {
+            background: #4a6cf7;
+            color: white;
+            border-radius: 20px;
+            padding: 5px 15px;
+            font-weight: 600;
+        }
+        
+        .confidence-bar {
+            flex: 1;
+            height: 20px;
+            background: #e0e7ff;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #3a5af5);
+            border-radius: 10px;
+        }
+        
+        .confidence-text {
+            min-width: 60px;
+            text-align: right;
+            font-weight: 600;
+            color: #4a6cf7;
+        }
+        
+        .progress-container {
+            margin: 15px 0;
+            background: #e0e7ff;
+            border-radius: 10px;
+            height: 10px;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4a6cf7, #8b5cf6);
+            border-radius: 10px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 25px 20px;
+            }
+            
+            h1 {
+                font-size: 26px;
+            }
+            
+            .uuid-input-container {
+                flex-direction: column;
+            }
+            
+            .uuid-input-container button {
+                padding: 14px;
+            }
+            
+            .action-buttons {
+                flex-wrap: wrap;
+            }
+            
+            .btn {
+                padding: 12px 20px;
+                font-size: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1><i class="fas fa-robot"></i>AI Model Tester</h1>
+        <p class="subtitle">Enter your UUID and upload an image for classification</p>
+        
+        <div class="uuid-container">
+            <label for="uuid-input"><i class="fas fa-key"></i> Enter UUID:</label>
+            <div class="uuid-input-container">
+                <input type="text" id="uuid-input" placeholder="Enter your unique identifier...">
+                <button id="uuid-submit"><i class="fas fa-check"></i> Set UUID</button>
+            </div>
+            <div id="uuid-status" class="uuid-status">
+                <i class="fas fa-info-circle"></i> UUID not set
+            </div>
+        </div>
+        
+        <div class="upload-container" id="upload-container">
+            <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+            <p class="upload-text">Select an image or capture with camera</p>
+            <div>
+                <button class="btn" id="file-btn"><i class="fas fa-folder-open"></i> Select File</button>
+                <button class="btn btn-camera" id="camera-btn"><i class="fas fa-camera"></i> Use Camera</button>
+            </div>
+            <input type="file" id="file-input" accept="image/*">
+        </div>
+        
+        <div class="camera-container" id="camera-container">
+            <video id="camera-feed" autoplay playsinline></video>
+            <button class="capture-btn" id="capture-btn"><i class="fas fa-camera"></i></button>
+        </div>
+        
+        <div class="image-preview" id="preview-container">
+            <img id="preview" alt="Preview">
+        </div>
+        
+        <button class="btn btn-submit" id="submit-btn"><i class="fas fa-paper-plane"></i> Upload Photo</button>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p class="status">Processing your image with AI...</p>
+            <div class="progress-container">
+                <div class="progress-bar" id="progress-bar"></div>
+            </div>
+        </div>
+        
+        <div class="response-container" id="response-container">
+            <h3 class="response-title"><i class="fas fa-server"></i> AI Classification Results</h3>
+            <div id="response-content">Results will appear here after processing</div>
+            
+            <div id="results-container"></div>
+        </div>
+        
+        <div class="action-buttons">
+            <button class="btn btn-reset" id="reset-btn"><i class="fas fa-redo"></i> Reset</button>
+        </div>
+    </div>
+
+    <script>
+        // DOM elements
+        const uuidInput = document.getElementById('uuid-input');
+        const uuidSubmit = document.getElementById('uuid-submit');
+        const uuidStatus = document.getElementById('uuid-status');
+        const fileInput = document.getElementById('file-input');
+        const fileBtn = document.getElementById('file-btn');
+        const cameraBtn = document.getElementById('camera-btn');
+        const captureBtn = document.getElementById('capture-btn');
+        const cameraContainer = document.getElementById('camera-container');
+        const cameraFeed = document.getElementById('camera-feed');
+        const previewContainer = document.getElementById('preview-container');
+        const previewImg = document.getElementById('preview');
+        const submitBtn = document.getElementById('submit-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const loading = document.getElementById('loading');
+        const responseContainer = document.getElementById('response-container');
+        const responseContent = document.getElementById('response-content');
+        const resultsContainer = document.getElementById('results-container');
+        const uploadContainer = document.getElementById('upload-container');
+        const progressBar = document.getElementById('progress-bar');
+        
+        // State variables
+        let currentImage = null;
+        let currentUUID = null;
+        let jobId = null;
+        const BASE_URL = `http://${window.location.hostname}:5000`;
+        
+        // Event listeners
+        uuidSubmit.addEventListener('click', setUUID);
+        fileBtn.addEventListener('click', () => fileInput.click());
+        cameraBtn.addEventListener('click', startCamera);
+        captureBtn.addEventListener('click', captureImage);
+        fileInput.addEventListener('change', handleFileSelect);
+        submitBtn.addEventListener('click', uploadImage);
+        resetBtn.addEventListener('click', resetAll);
+        
+        // Set UUID
+        function setUUID() {
+            const uuid = uuidInput.value.trim();
+            if (uuid) {
+                currentUUID = uuid;
+                uuidStatus.innerHTML = `<i class="fas fa-check-circle"></i> UUID set: ${uuid}`;
+                uuidStatus.className = 'uuid-status valid';
+                uploadContainer.classList.add('active');
+            } else {
+                showError('Please enter a valid UUID');
+            }
+        }
+        
+        // Handle file selection
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                displayImage(file);
+            }
+        }
+        
+        // Start camera
+        function startCamera() {
+            if (!currentUUID) {
+                showError('Please set a UUID first');
+                return;
+            }
+            
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ video: true })
+                    .then(stream => {
+                        cameraFeed.srcObject = stream;
+                        cameraContainer.style.display = 'block';
+                        cameraBtn.style.display = 'none';
+                        fileBtn.style.display = 'none';
+                    })
+                    .catch(error => {
+                        console.error('Camera error:', error);
+                        showError('Error accessing camera. Please ensure you have a camera connected and have granted permission.');
+                    });
+            } else {
+                showError('Your browser does not support camera access.');
+            }
+        }
+        
+        // Capture image
+        function captureImage() {
+            const canvas = document.createElement('canvas');
+            canvas.width = cameraFeed.videoWidth;
+            canvas.height = cameraFeed.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(cameraFeed, 0, 0, canvas.width, canvas.height);
+            
+            canvas.toBlob(blob => {
+                const file = new File([blob], 'capture.jpg', { type: 'image/jpeg' });
+                displayImage(file);
+                
+                // Stop camera stream
+                const tracks = cameraFeed.srcObject.getTracks();
+                tracks.forEach(track => track.stop());
+                cameraContainer.style.display = 'none';
+                cameraBtn.style.display = 'inline-block';
+                fileBtn.style.display = 'inline-block';
+            }, 'image/jpeg');
+        }
+        
+        // Display image
+        function displayImage(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewImg.src = e.target.result;
+                previewContainer.style.display = 'block';
+                submitBtn.style.display = 'inline-block';
+                responseContainer.style.display = 'none';
+                currentImage = file;
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        // Upload image
+        function uploadImage() {
+            if (!currentUUID) {
+                showError('Please set a UUID first');
+                return;
+            }
+            
+            if (!currentImage) {
+                showError('Please select an image first');
+                return;
+            }
+            
+            loading.style.display = 'block';
+            progressBar.style.width = '0%';
+            responseContainer.style.display = 'none';
+            
+            const formData = new FormData();
+            formData.append('photo', currentImage, 'image.jpg');
+            
+            // Use the UUID in the endpoint
+            const apiUrl = `${BASE_URL}/upload_photo/${currentUUID}`;
+
+            fetch(apiUrl, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.job_id) {
+                    jobId = data.job_id;
+                    responseContent.textContent = `Photo uploaded successfully!\nJob ID: ${jobId}\n\nFetching results...`;
+                    responseContainer.style.display = 'block';
+                    checkJobStatus();
+                } else {
+                    throw new Error('Job ID not received from server');
+                }
+            })
+            .catch(error => {
+                showError(error.message);
+                loading.style.display = 'none';
+            });
+        }
+        
+        // Check job status periodically
+        function checkJobStatus() {
+            if (!jobId) return;
+            
+            const statusUrl = `${BASE_URL}/run-trained-model/${jobId}`;
+            
+            fetch(statusUrl)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                }
+                progressBar.style.width = '100%';
+                loading.style.display = 'none';
+                return response.json();
+            }).then(data =>{
+                console.log(data);
+                displayResults(data);    
+            })
+        }
+        
+        // Display results
+        function displayResults(result) {
+            if (!result) {
+                showError('No results returned from server');
+                return;
+            }
+            
+            const classNames = {
+                0: 'Cat',
+                1: 'Dog',
+                2: 'Bird',
+                3: 'Car',
+                4: 'Flower',
+                5: 'Building',
+                6: 'Person',
+                7: 'Tree'
+            };
+            console.log(result.class);
+            const className = classNames[result.class] || `Class ${result.class}`;
+            
+            // Display JSON response
+            responseContent.textContent = JSON.stringify({
+                class: result.class,
+                confidence: result.confidence,
+                className: className
+            }, null, 2);
+            
+            // Create visual representation
+            resultsContainer.innerHTML = `
+                <div class="response-item">
+                    <div class="class-badge">Class ${result.class}</div>
+                    <div class="confidence-text">${(result.confidence * 100).toFixed(1)}%</div>
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" style="width: ${result.confidence * 100}%"></div>
+                    </div>
+                </div>
+                <div style="margin-top: 15px; text-align: center; font-weight: 600; color: #4a6cf7;">
+                    <i class="fas fa-${className === 'Cat' ? 'cat' : className === 'Dog' ? 'dog' : className === 'Bird' ? 'crow' : className === 'Car' ? 'car' : className === 'Flower' ? 'flower' : className === 'Building' ? 'building' : className === 'Person' ? 'user' : 'tree'}"></i>
+                    Detected: ${className}
+                </div>
+            `;
+        }
+        
+        // Show error
+        function showError(message) {
+            responseContainer.style.display = 'block';
+            responseContent.textContent = message;
+            responseContent.classList.add('error');
+            resultsContainer.innerHTML = '';
+        }
+        
+        // Reset all
+        function resetAll() {
+            fileInput.value = '';
+            previewImg.src = '';
+            previewContainer.style.display = 'none';
+            submitBtn.style.display = 'none';
+            responseContainer.style.display = 'none';
+            uuidInput.value = '';
+            currentImage = null;
+            currentUUID = null;
+            jobId = null;
+            resultsContainer.innerHTML = '';
+            responseContent.classList.remove('error');
+            responseContent.textContent = 'Results will appear here after processing';
+            uuidStatus.innerHTML = `<i class="fas fa-info-circle"></i> UUID not set`;
+            uuidStatus.className = 'uuid-status';
+            uploadContainer.classList.remove('active');
+            progressBar.style.width = '0%';
+            
+            if (cameraFeed.srcObject) {
+                const tracks = cameraFeed.srcObject.getTracks();
+                tracks.forEach(track => track.stop());
+                cameraContainer.style.display = 'none';
+                cameraBtn.style.display = 'inline-block';
+                fileBtn.style.display = 'inline-block';
+            }
+        }
+    </script>
+</body>
+</html>

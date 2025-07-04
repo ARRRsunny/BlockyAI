@@ -2,12 +2,15 @@ import os
 import uuid
 import threading
 import subprocess
-from flask import Flask, jsonify, request, send_file,   abort
+from flask import Flask, jsonify, request, send_file, abort
 from flask_cors import CORS
 from collections import defaultdict
 import logging
 import re
 from PIL import Image
+import numpy as np
+from tensorflow.keras.models import load_model
+
 Address = '0.0.0.0'
 Port = 5000
 
@@ -25,6 +28,27 @@ if not os.access(app.config['STATIC_FOLDER'], os.W_OK):
     raise PermissionError(f"Cannot write to static folder: {app.config['STATIC_FOLDER']}")
 # Store training states per job ID
 jobs = defaultdict(dict)
+
+def import_model(job_id):
+    return os.path.join(app.config['UPLOAD_FOLDER'], f'model_{job_id}.h5')
+
+def import_image(job_id):
+    return os.path.join(app.config['PHOTO_FOLDER'], f'cap_{job_id}.jpg')
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+
+def preprocess_image(image_path, model, target_size=(224, 224)):
+    img = Image.open(image_path).convert('L')
+    if model.input_shape[1:3] != (None, None):
+        target_size = (model.input_shape[2], model.input_shape[1])
+    img = img.resize(target_size)
+    img_array = np.array(img) / 255.0
+    img_array = np.expand_dims(img_array, axis=-1)
+    img_array = np.expand_dims(img_array, axis=0)
+    return img_array
+
 
 def run_training(job_id, code):
     try:
@@ -174,8 +198,23 @@ def get_status(job_id):
     return jsonify(response)
 
 @app.route('/run-trained-model/<job_id>', methods=['GET'])
-def run_trained_model():
-    pass
+def run_trained_model(job_id):
+    try:
+        model_path = import_model(job_id)
+        image = import_image(job_id)
+        model = load_model(model_path)
+        processed_image = preprocess_image(image, model)
+        prediction = model.predict(processed_image)
+        class_index = np.argmax(prediction[0])
+        confidence = prediction[0][class_index]
+        res_output = {'class': float(class_index), 'confidence': float(confidence)}
+        print(res_output)
+        return jsonify(res_output), 200
+    
+    except Exception as e:
+        logging.error(f"Predicting error: {str(e)}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+        
 
 @app.route('/download-model/<job_id>')
 def download_model(job_id):
@@ -228,7 +267,8 @@ def upload_photo(job_id):
         logging.info(f"Photo saved successfully: {filename}")
         
         return jsonify({
-            "message": f"Photo uploaded successfully as {filename}"
+            "message": f"Photo uploaded successfully as {filename}",
+            "job_id": job_id
         }), 200
 
     except Exception as e:
