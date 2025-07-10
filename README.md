@@ -98,6 +98,16 @@ Ensure the following dependencies are installed:
 4. View the model's architecture in the **Model Visualization Area**.
 
 5. Click **Run** in the Code Display Area to generate and execute the Python code for your model.
+   - A loading bar will be shown and you just need to wait for the model to be finished.
+
+6. Click **Download Train Model** for downloading model
+
+### Using Your Own Trained Model
+
+1. Running Model through our website
+   - Click the **Get QR Code** and copy your **Model ID**.
+   - Click the **Click to test** to redirect the **Test Panel** page.
+   - Input your **Model ID** and start testing the model.
 
 ---
 
@@ -231,7 +241,7 @@ We welcome contributions! Feel free to submit issues or pull requests on the [Gi
 
 ## Credits
 
-- **Created by**: [@ARRRsunny](https://github.com/ARRRsunny)
+- **Created by**: [@ARRRsunny](https://github.com/ARRRsunny), [@EVBAS](https://github.com/EVBAS)
 - **Inspiration**: Tools like Micro:bit, Scratch, and TensorFlow.
 
 ---
