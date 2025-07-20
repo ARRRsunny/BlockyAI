@@ -400,6 +400,129 @@
         #closeQrModal:hover {
             background: #d32f2f;
         }
+        #chat-bubble {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: #4CAF50;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            z-index: 10;
+            transition: all 0.3s ease;
+        }
+        
+        #chat-bubble:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        }
+        
+        #chat-bubble::after {
+            content: "💬";
+            font-size: 28px;
+        }
+        
+        #chat-window {
+            display: none;
+            position: fixed;
+            top: 100px;
+            right: 30px;
+            width: 350px;
+            height: 450px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            z-index: 1001;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .chat-header {
+            background: #4CAF50;
+            color: white;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .chat-header h3 {
+            margin: 0;
+            font-size: 18px;
+        }
+        
+        .close-chat {
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        
+        #chat-messages {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background: #f9f9f9;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            max-width: 80%;
+        }
+        
+        .user-message {
+            background: #e3f2fd;
+            margin-left: auto;
+        }
+        
+        .ai-message {
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            margin-right: auto;
+        }
+        
+        .chat-input {
+            display: flex;
+            padding: 10px;
+            background: white;
+            border-top: 1px solid #eee;
+        }
+        
+        #user-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        
+        #send-button {
+            padding: 10px 15px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .typing-indicator {
+            display: none;
+            padding: 5px 10px;
+            background: #eee;
+            border-radius: 15px;
+            font-size: 12px;
+            color: #666;
+            width: fit-content;
+            margin-bottom: 10px;
+        }
         
     </style>
 </head>
@@ -440,6 +563,23 @@
             <div class="status-message"></div>
             
         </div>
+        <div id="chat-bubble"></div>
+    
+        <div id="chat-window">
+            <div class="chat-header">
+                <h3>AI Assistant</h3>
+                <button class="close-chat">×</button>
+            </div>
+            <div id="chat-messages">
+                <div class="typing-indicator">AI is thinking...</div>
+                <!-- Messages will be added here dynamically -->
+            </div>
+            <div class="chat-input">
+                <input type="text" id="user-input" placeholder="Ask about deep learning...">
+                <button id="send-button">Send</button>
+            </div>
+        </div>
+
 
     </div>
     
@@ -548,6 +688,77 @@
                     }
                 });
             }
+
+            initChat() {
+                const chatBubble = document.getElementById('chat-bubble');
+                const chatWindow = document.getElementById('chat-window');
+                const closeChat = document.querySelector('.close-chat');
+                const sendButton = document.getElementById('send-button');
+                const userInput = document.getElementById('user-input');
+                const chatMessages = document.getElementById('chat-messages');
+                const typingIndicator = document.querySelector('.typing-indicator');
+                
+                // Toggle chat window
+                chatBubble.addEventListener('click', () => {
+                    chatWindow.style.display = 'flex';
+                });
+                
+                closeChat.addEventListener('click', () => {
+                    chatWindow.style.display = 'none';
+                });
+                
+                // Handle sending messages
+                const sendMessage = () => {
+                    const message = userInput.value.trim();
+                    if (!message) return;
+                    
+                    // Add user message to chat
+                    this.addMessage(message, 'user');
+                    userInput.value = '';
+                    
+                    // Show typing indicator
+                    typingIndicator.style.display = 'block';
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                    
+                    // Send to API
+                    this.sendToAI(message);
+                };
+                
+                sendButton.addEventListener('click', sendMessage);
+                userInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') sendMessage();
+                });
+            }
+            
+            addMessage(text, sender) {
+                const chatMessages = document.getElementById('chat-messages');
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('message', `${sender}-message`);
+                messageDiv.textContent = text;
+                chatMessages.appendChild(messageDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+            
+            async sendToAI(message) {
+                try {
+                    const response = await fetch(`${this.BASE_URL}/chat`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message })
+                    });
+                    
+                    if (!response.ok) throw new Error('Failed to get AI response');
+                    
+                    const data = await response.json();
+                    document.querySelector('.typing-indicator').style.display = 'none';
+                    this.addMessage(data.response, 'ai');
+                } catch (error) {
+                    document.querySelector('.typing-indicator').style.display = 'none';
+                    this.addMessage('Error connecting to AI assistant', 'ai');
+                    console.error('Chat error:', error);
+                }
+            }
+        
             generateQRCode(url) {
                 const qrcodeDiv = document.getElementById('qrcode');
                 
@@ -1380,12 +1591,16 @@ if image.shape[-1] == 1:
                 }
             }
         }
-        
+
         // Initialize BlockyAI and define custom blocks
         document.addEventListener('DOMContentLoaded', () => {
             const blockyAI = new BlockyAI();
             blockyAI.defineCustomBlocks();
+            blockyAI.initChat();
             console.log('loaded');
+            setTimeout(() => {
+                blockyAI.addMessage("Hello! I'm your AI assistant. Ask me about deep learning concepts, model architecture, or how to use BlockyAI!", 'ai');
+            }, 1000);
         });
     </script>
 </body>

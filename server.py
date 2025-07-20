@@ -9,10 +9,13 @@ import logging
 import re
 from PIL import Image
 import numpy as np
+import ollama
 from tensorflow.keras.models import load_model
 
 Address = '0.0.0.0'
 Port = 5000
+
+AIMODEL = 'llama3.1:8b' 
 
 app = Flask(__name__)
 CORS(app)
@@ -167,7 +170,22 @@ def run_training(job_id, code):
             jobs[job_id]['model_path'] = None
         if 'image_path' in jobs[job_id] and not os.path.exists(image_path):
             jobs[job_id]['image_path'] = None
-            
+
+def get_respone(message:str):
+    response = ollama.chat(
+        AIMODEL,
+        messages=[{'role': 'user', 'content': f"""
+You are an AI tutor specialized in teaching AI/model concepts to students. Respond exclusively with concise, accurate answers to technical questions about AI (e.g., machine learning, neural networks, training methodologies).
+Omit greetings, disclaimers, or follow-up questions.
+If a query is off-topic, non-technical, or unclear, reply with: '[Topic Error]'
+Never break character. The Question is:
+{message}"""}],
+    )
+    return response['message']['content']
+    
+
+
+
 @app.route('/run-model', methods=['POST'])
 def start_training():
     code = request.json.get('code')
@@ -274,6 +292,17 @@ def upload_photo(job_id):
     except Exception as e:
         logging.error(f"Error uploading photo: {str(e)}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
+    
+@app.route("/chat", methods=['POST'])
+def AIteach():
+    try:
+        text = request.json.get('message')
+        respone = get_respone(text)
+        return jsonify({"response":respone}) , 200
+    except Exception as e:
+        logging.error(f"Error in AI assist: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
+        
 
 @app.route("/", methods=["GET"])
 def serve_html():
