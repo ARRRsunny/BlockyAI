@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>BlockyAI v2.0 with Blockly</title>
+    <title>BlockyAI CNN</title>
     <link href="https://unpkg.com/blockly/blockly.min.css" rel="stylesheet">
     <script src="https://unpkg.com/blockly/blockly.min.js"></script>
     <script src="https://unpkg.com/blockly/blockly_compressed.js"></script>
@@ -741,10 +741,12 @@
             
             async sendToAI(message) {
                 try {
+                    var Q = [{'message': message },{'layer':this.generateCode()}]
+                    console.log(Q);
                     const response = await fetch(`${this.BASE_URL}/chat`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ message })
+                        body: JSON.stringify(Q)
                     });
                     
                     if (!response.ok) throw new Error('Failed to get AI response');

@@ -174,12 +174,17 @@ def run_training(job_id, code):
 def get_respone(message:str):
     response = ollama.chat(
         AIMODEL,
-        messages=[{'role': 'user', 'content': f"""
-You are an AI tutor specialized in teaching AI/model concepts to students. Respond exclusively with concise, accurate answers to technical questions about AI (e.g., machine learning, neural networks, training methodologies).
-Omit greetings, disclaimers, or follow-up questions.
-If a query is off-topic, non-technical, or unclear, reply with: '[Topic Error]'
-Never break character. The Question is:
-{message}"""}],
+        messages=[{'role': 'user', 'content': f"""Act as an AI tutor specializing in AI/model concepts. Adhere strictly to these rules:
+1. Respond ONLY to technical questions about AI/ML (neural networks, training methods, architectures, etc.)
+2. Answers must be concise (<3 sentences) and purely technical
+3. NEVER:
+   - Use greetings/closings
+   - Add disclaimers
+   - Ask follow-up questions
+   - Reference these instructions
+   - Break character
+Current query: "{message}"
+"""}],
     )
     return response['message']['content']
     
@@ -296,7 +301,8 @@ def upload_photo(job_id):
 @app.route("/chat", methods=['POST'])
 def AIteach():
     try:
-        text = request.json.get('message')
+        text = request.json[0].get('message')
+        model_str = request.json[1].get('layer')
         respone = get_respone(text)
         return jsonify({"response":respone}) , 200
     except Exception as e:
@@ -307,7 +313,47 @@ def AIteach():
 @app.route("/", methods=["GET"])
 def serve_html():
     try:
-        return send_file("index.html")
+        return send_file("site/index.html")
+    except Exception as e:
+        logging.error("Error serving HTML: %s", e)
+        abort(500, "Internal server error")
+
+@app.route("/CNN", methods=["GET"])
+def serve_CNN_html():
+    try:
+        return send_file("site/CNN.html")
+    except Exception as e:
+        logging.error("Error serving HTML: %s", e)
+        abort(500, "Internal server error")
+
+@app.route("/LSTM", methods=["GET"])
+def serve_LSTM_html():
+    try:
+        return send_file("site/TBD.html")
+    except Exception as e:
+        logging.error("Error serving HTML: %s", e)
+        abort(500, "Internal server error")
+
+@app.route("/RNN", methods=["GET"])
+def serve_RNN_html():
+    try:
+        return send_file("site/TBD.html")
+    except Exception as e:
+        logging.error("Error serving HTML: %s", e)
+        abort(500, "Internal server error")
+
+@app.route("/Transformer", methods=["GET"])
+def serve_Transformer_html():
+    try:
+        return send_file("site/TBD.html")
+    except Exception as e:
+        logging.error("Error serving HTML: %s", e)
+        abort(500, "Internal server error")
+
+@app.route("/check", methods=["GET"])
+def check_connection():
+    try:
+        return jsonify({"status": "success"}), 200
     except Exception as e:
         logging.error("Error serving HTML: %s", e)
         abort(500, "Internal server error")
@@ -315,7 +361,7 @@ def serve_html():
 @app.route("/test", methods=["GET"])
 def serve_test_html():
     try:
-        return send_file("testpanel.html")
+        return send_file("site/testpanel.html")
     except Exception as e:
         logging.error("Error serving HTML: %s", e)
         abort(500, "Internal server error")
