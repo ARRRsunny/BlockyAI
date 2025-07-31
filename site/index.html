@@ -6,7 +6,7 @@
     <title>BlockyAI</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        * {
+                * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
@@ -14,13 +14,17 @@
         }
         
         :root {
-            --primary: #2563eb;
-            --primary-dark: #1d4ed8;
-            --secondary: #8b5cf6;
-            --dark: #0f172a;
-            --light: #f8fafc;
+            --primary: #45a049;
+            --primary-light: #dbeafe;
+            --primary-dark: #3d8841;
+            --secondary: #20d170;
+            --dark: #1e293b;
+            --light: #ffffff;
             --gray: #64748b;
+            --light-gray: #f1f5f9;
+            --border: #e2e8f0;
             --success: #10b981;
+            --success-light: #d1fae5;
             --cnn: #3b82f6;
             --rnn: #ec4899;
             --lstm: #8b5cf6;
@@ -28,8 +32,8 @@
         }
         
         body {
-            background: linear-gradient(135deg, #0f172a, #1e293b);
-            color: var(--light);
+            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+            color: var(--dark);
             min-height: 100vh;
             padding: 20px;
             display: flex;
@@ -40,19 +44,18 @@
         .container {
             max-width: 1200px;
             width: 100%;
-            background: rgba(30, 41, 59, 0.7);
+            background: var(--light);
             border-radius: 20px;
             overflow: hidden;
-            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            border: 1px solid var(--border);
         }
         
         header {
             padding: 30px;
             text-align: center;
-            background: rgba(15, 23, 42, 0.5);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background: var(--light);
+            border-bottom: 1px solid var(--border);
         }
         
         .logo {
@@ -99,15 +102,15 @@
         
         .sidebar {
             padding: 30px;
-            background: rgba(15, 23, 42, 0.5);
-            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            background: var(--light);
+            border-right: 1px solid var(--border);
         }
         
         .sidebar-title {
             font-size: 1.5rem;
             margin-bottom: 20px;
             padding-bottom: 15px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid var(--border);
             color: var(--primary);
         }
         
@@ -127,19 +130,19 @@
             padding: 15px;
             border-radius: 12px;
             text-decoration: none;
-            color: var(--light);
+            color: var(--dark);
             font-weight: 500;
             transition: all 0.3s ease;
-            background: rgba(255, 255, 255, 0.05);
+            background: var(--light-gray);
         }
         
         .category-link:hover {
-            background: rgba(37, 99, 235, 0.2);
+            background: var(--primary-light);
             transform: translateX(5px);
         }
         
         .category-link.active {
-            background: rgba(37, 99, 235, 0.3);
+            background: var(--primary-light);
             border-left: 4px solid var(--primary);
         }
         
@@ -152,7 +155,7 @@
         .ip-form {
             margin-top: 20px;
             padding-top: 20px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-top: 1px solid var(--border);
         }
         
         .ip-form label {
@@ -171,17 +174,17 @@
             flex: 1;
             padding: 14px 20px;
             border-radius: 12px;
-            border: none;
-            background: rgba(15, 23, 42, 0.7);
-            color: white;
+            border: 1px solid var(--border);
+            background: var(--light);
+            color: var(--dark);
             font-size: 1rem;
-            border: 1px solid rgba(255, 255, 255, 0.1);
             transition: border-color 0.3s;
         }
         
         .ip-input:focus {
             outline: none;
             border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
         }
         
         .submit-btn {
@@ -204,6 +207,7 @@
             display: flex;
             flex-direction: column;
             height: 100%;
+            background: var(--light-gray);
         }
         
         .category-content {
@@ -222,7 +226,7 @@
         .category-icon {
             font-size: 2.5rem;
             color: var(--primary);
-            background: rgba(37, 99, 235, 0.2);
+            background: var(--primary-light);
             width: 80px;
             height: 80px;
             display: flex;
@@ -251,17 +255,18 @@
         }
         
         .service-info {
-            background: rgba(15, 23, 42, 0.7);
+            background: var(--light);
             border-radius: 16px;
             padding: 25px;
             margin-top: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
         }
         
         .service-title {
             font-size: 1.4rem;
             margin-bottom: 20px;
-            color: var(--light);
+            color: var(--dark);
         }
         
         .service-description {
@@ -291,13 +296,13 @@
             transition: all 0.3s ease;
             border: none;
             cursor: pointer;
-            box-shadow: 0 6px 15px rgba(37, 99, 235, 0.3);
+            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
         }
         
         .jump-button:hover {
             background: var(--primary-dark);
             transform: translateY(-3px);
-            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
+            box-shadow: 0 6px 15px rgba(37, 99, 235, 0.3);
         }
         
         .jump-button:disabled {
@@ -308,7 +313,7 @@
         }
         
         .service-url {
-            background: rgba(16, 185, 129, 0.1);
+            background: var(--success-light);
             color: var(--success);
             padding: 15px 20px;
             border-radius: 12px;
@@ -318,18 +323,19 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            border: 1px solid rgba(16, 185, 129, 0.2);
         }
         
         footer {
             text-align: center;
             padding: 25px;
             color: var(--gray);
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            background: rgba(15, 23, 42, 0.5);
+            border-top: 1px solid var(--border);
+            background: var(--light);
         }
         
         .current-ip {
-            background: rgba(16, 185, 129, 0.1);
+            background: var(--success-light);
             color: var(--success);
             padding: 10px 15px;
             border-radius: 8px;
@@ -338,6 +344,7 @@
             display: inline-flex;
             align-items: center;
             gap: 8px;
+            border: 1px solid rgba(16, 185, 129, 0.2);
         }
         
         .ip-success {
