@@ -284,9 +284,7 @@
         .model-graph {
             height: 100%;
             background: white;
-
             border-radius: 5px;
-
         }
 
         .model-canvas {
@@ -523,6 +521,112 @@
             width: fit-content;
             margin-bottom: 10px;
         }
+        #info-bubble {
+            position: fixed;
+            top: 30px;
+            right: 100px;
+            width: 60px;
+            height: 60px;
+            background: #4CAF50;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            z-index: 10;
+            transition: all 0.3s ease;
+        }
+
+        #info-bubble:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        }
+
+        #info-bubble::after {
+            content: "?";
+            font-size: 28px;
+            font-weight: bold;
+            color: white;
+        }
+
+        #info-window {
+            display: none;
+            position: fixed;
+            top: 100px;
+            right: 30px;
+            width: 700px;
+            height: 450px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            z-index: 1001;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .info-header {
+            background: #4CAF50;
+            color: white;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .info-header h3 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .close-info {
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        .info-right {
+            grid-column: 0; 
+        }
+        .info-left {
+            grid-column: 1; 
+        }
+
+        .info-content {
+            display: grid; /* Add this */
+            grid-template-columns: 1fr 1fr; /* Two equal columns */
+            gap: 20px; /* Space between columns */
+            padding: 15px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .info-content img {
+            width: 100%;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .info-content p {
+            margin: 10px 0;
+            line-height: 1.5;
+        }
+
+        .info-content ul {
+            padding-left: 20px;
+            margin: 10px 0;
+        }
+
+        .info-content li {
+            margin-bottom: 8px;
+        }
+         .highlight {
+            background: linear-gradient(120deg, rgba(143, 227, 207, 0.3), rgba(255, 253, 134, 0.3));
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
         
     </style>
 </head>
@@ -580,6 +684,29 @@
             </div>
         </div>
 
+        <div id="info-bubble"></div>
+        <div id="info-window">
+            <div class="info-header">
+                <h3>BlockyAI Information</h3>
+                <button class="close-info">×</button>
+            </div>
+            <div class="info-content">
+                <div class="info-left">
+                    <img src="https://raw.githubusercontent.com/ARRRsunny/BlockyAI/refs/heads/main/asset/CNN_example.png" alt="BlockyAI Information">
+                </div>
+                <div class="info-right">
+                    <p>This diagram shows a typical Convolutional Neural Network (CNN) architecture for image classification. The model processes an input image through several specialized layers:</p>
+                    <p><strong>Features:</strong></p>
+                    <ul>
+                        <li><span class="highlight">Conv2D</span>: Applies filters to detect features like edges and textures</li>
+                        <li><span class="highlight">MaxPooling</span>: Reduces spatial dimensions while preserving important features</li>
+                        <li><span class="highlight">Flatten</span>: Converts 2D feature maps to 1D vector for classification</li>
+                        <li><span class="highlight">Dense</span>: Fully connected layers that perform classification</li>
+                    </ul>
+                </div>
+               
+            </div>
+        </div>
 
     </div>
     
@@ -628,6 +755,7 @@
                 this.initCopyButton();
                 this.initRunPanel();
                 this.updateCode();
+                this.initInfoBubble();
             }
             
             initBlockly() {
@@ -697,10 +825,11 @@
                 const userInput = document.getElementById('user-input');
                 const chatMessages = document.getElementById('chat-messages');
                 const typingIndicator = document.querySelector('.typing-indicator');
-                
+                const infoWindow = document.getElementById('info-window');
                 // Toggle chat window
                 chatBubble.addEventListener('click', () => {
                     chatWindow.style.display = 'flex';
+                    infoWindow.style.display = 'none';
                 });
                 
                 closeChat.addEventListener('click', () => {
@@ -729,7 +858,28 @@
                     if (e.key === 'Enter') sendMessage();
                 });
             }
-            
+            // Add this method to the BlockyAI class
+            initInfoBubble() {
+                const infoBubble = document.getElementById('info-bubble');
+                const infoWindow = document.getElementById('info-window');
+                const closeInfo = document.querySelector('.close-info');
+                const chatWindow = document.getElementById('chat-window');
+                infoBubble.addEventListener('click', () => {
+                    infoWindow.style.display = 'flex';
+                    chatWindow.style.display = 'none';
+                });
+
+                closeInfo.addEventListener('click', () => {
+                    infoWindow.style.display = 'none';
+                });
+
+                // Close when clicking outside
+                window.addEventListener('click', (e) => {
+                    if (e.target === infoWindow) {
+                        infoWindow.style.display = 'none';
+                    }
+                });
+            }
             addMessage(text, sender) {
                 const chatMessages = document.getElementById('chat-messages');
                 const messageDiv = document.createElement('div');
@@ -1592,12 +1742,25 @@ if image.shape[-1] == 1:
                         return 8; // Default number of units to display
                 }
             }
-        }
+            createInitialBlocks() {
+                const workspace = this.workspace;
+                // Create input block
+                const inputBlock = workspace.newBlock('input_layer');
+                inputBlock.initSvg();
+                inputBlock.render();
+                inputBlock.moveBy(100, 50);  // Position the input block
 
+                // Render all changes
+                workspace.render();
+            }
+
+        }
+        
         // Initialize BlockyAI and define custom blocks
         document.addEventListener('DOMContentLoaded', () => {
             const blockyAI = new BlockyAI();
             blockyAI.defineCustomBlocks();
+            blockyAI.createInitialBlocks();
             blockyAI.initChat();
             console.log('loaded');
             setTimeout(() => {
